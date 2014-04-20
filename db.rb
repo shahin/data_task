@@ -80,10 +80,16 @@ module Db
     operations_supported[:by_db_rule].each do |operation|
       Sql.exec <<-EOSQL
         create or replace rule #{self.rule_name(table_name,operation)} as 
-          on #{operation} to #{table_name} do also
+          on #{operation} to #{table_name} do also (
+          delete from #{TRACKING_TABLE_NAME} where 
+            relation_name = '#{table_name}' and 
+            relation_type = 'TABLE' and
+            operation = '#{operation}'
+            ;
           insert into #{TRACKING_TABLE_NAME} values (
             '#{table_name}', 'TABLE', '#{operation}', now()
-          );
+            );
+          )
       EOSQL
     end
   end
@@ -91,6 +97,11 @@ module Db
   def self.track_creation table_name, n_tuples
     operation = 'create'
     Sql.exec <<-EOSQL
+      delete from #{TRACKING_TABLE_NAME} where 
+        relation_name = '#{table_name}' and 
+        relation_type = 'TABLE' and
+        operation = '#{operation}'
+        ;
       insert into #{Db::TRACKING_TABLE_NAME} values (
         '#{table_name}', 'TABLE', '#{operation}', now()
       );
