@@ -30,7 +30,11 @@ module Connection
 
   def self.execute sql
     connect if @@connection.nil?
-    @@connection.exec sql
+    begin
+      @@connection.exec sql
+    rescue PGError => e
+      LOG.info e.message.chomp
+    end
   end
 
 end

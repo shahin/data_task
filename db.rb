@@ -39,11 +39,11 @@ module Db
   end
 
   def self.truncate_table table_name
-    (Sql.exec "truncate table #{table_name}").cmd_status
+    Sql.exec "truncate table #{table_name}"
   end
 
   def self.drop_table table_name
-    (Sql.exec "drop table if exists #{table_name} cascade").cmd_status
+    Sql.exec "drop table if exists #{table_name} cascade"
   end
 
   def self.table_exists? table_name, schema_names
