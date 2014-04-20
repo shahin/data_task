@@ -23,7 +23,7 @@ module Db
   end
 
   def self.tear_down_tracking
-    Sql.exec "drop table #{TRACKING_TABLE_NAME}"
+    Sql.exec "drop table #{TRACKING_TABLE_NAME} cascade"
   end
   
   def self.reset_tracking
