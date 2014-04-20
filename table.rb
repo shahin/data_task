@@ -1,4 +1,3 @@
-require_relative './sql'
 require_relative './db'
 
 # Represents a table accessed via a database, roughly analogous to the File class.
@@ -9,14 +8,18 @@ class Table
     self.class.create_as(@name, data_definition, column_definitions)
   end
 
+  def mtime table_name
+    self.class.mtime(@name)
+  end
+
   def self.exists? table_name, schema_names = ['public']
-    Db.table_exists? table_name, schema_names
+    Db.table_exists?(table_name, schema_names)
   end
 
   self.singleton_class.send(:alias_method, :exist?, :exists?)
 
   def self.mtime table_name
-    Db.table_mtime table_name
+    Db.table_mtime(table_name)
   end
 
   def self.create table_name, column_definitions
