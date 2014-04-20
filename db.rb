@@ -12,17 +12,14 @@ module Db
   end
 
   def self.set_up_tracking
-
-    # create tracking table
     Sql.exec <<-EOSQL
       create table #{TRACKING_TABLE_NAME} (
-        table_name text, 
-        mtime timestamp, 
+        relation_name text,
+        relation_type text,
         operation text,
-        cmd_tuples integer
+        time timestamp
       )
     EOSQL
-
   end
 
   def self.tear_down_tracking
@@ -35,9 +32,9 @@ module Db
 
   def self.table_mtime table_name
     Sql.get_single_time <<-EOSQL
-      select max(mtime) 
+      select max(time) 
       from #{TRACKING_TABLE_NAME} 
-      where table_name = '#{table_name}'
+      where relation_name = '#{table_name}'
     EOSQL
   end
 
@@ -85,7 +82,7 @@ module Db
         create or replace rule #{self.rule_name(table_name,operation)} as 
           on #{operation} to #{table_name} do also
           insert into #{TRACKING_TABLE_NAME} values (
-            '#{table_name}', now(), '#{operation}', NULL
+            '#{table_name}', 'TABLE', '#{operation}', now()
           );
       EOSQL
     end
@@ -95,7 +92,7 @@ module Db
     operation = 'create'
     Sql.exec <<-EOSQL
       insert into #{Db::TRACKING_TABLE_NAME} values (
-        '#{table_name}', now(), '#{operation}', #{n_tuples}
+        '#{table_name}', 'TABLE', '#{operation}', now()
       );
     EOSQL
   end
