@@ -1,4 +1,13 @@
-tabletask
-=========
+Provides a Rake task for managing table builds, analogous to Rake's built-in FileTask.
 
-Rake task for managing tables in an RDBMS
+Requirements
+============
+
+* rake
+* pg (gem)
+
+
+Inspiration
+===========
+
+* https://github.com/darrell/postgistable
