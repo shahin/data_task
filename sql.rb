@@ -25,6 +25,7 @@ module Sql
 
   def self.get_single_time sql
     r = exec(sql)
+    return nil if r.values.first.compact.empty?
     Time.parse(r.values.first.first)
   end
 
