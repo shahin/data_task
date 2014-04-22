@@ -1,32 +1,27 @@
 require 'time'
-require_relative './connection.rb'
+require_relative './util'
 
-class Array
-  def to_quoted_s
-    commad = self.join("','")
-    "'#{commad}'"
+module Rake
+  module TableTask
+
+    class Sql
+
+      def self.exec sql
+        Db.execute sql
+      end
+
+      def self.get_single_int sql
+        r = exec(sql)
+        r.values.first.first.to_i
+      end
+
+      def self.get_single_time sql
+        r = exec(sql)
+        return nil if r.values.first.compact.empty?
+        Time.parse(r.values.first.first)
+      end
+
+    end
+
   end
-end
-
-module Sql
-
-  def self.connection
-    Connection
-  end
-
-  def self.exec sql
-    connection.execute sql
-  end
-
-  def self.get_single_int sql
-    r = exec(sql)
-    r.values.first.first.to_i
-  end
-
-  def self.get_single_time sql
-    r = exec(sql)
-    return nil if r.values.first.compact.empty?
-    Time.parse(r.values.first.first)
-  end
-
 end
