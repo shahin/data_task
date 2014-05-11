@@ -1,5 +1,6 @@
 require 'time'
 require_relative './util'
+require_relative './db'
 
 module Rake
   module TableTask
@@ -12,7 +13,15 @@ module Rake
 
       def self.get_single_int sql
         r = exec(sql)
-        r.values.first.first.to_i
+        if r.values.first.first.nil?
+          nil
+        elsif r.values.length > 1
+          raise TypeError, 'Query must result in a single row'
+        elsif r.values.first.length > 1
+          raise TypeError, 'Query must result in a single column'
+        else
+          Integer(r.values.first.first)
+        end
       end
 
       def self.get_single_time sql
