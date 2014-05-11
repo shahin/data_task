@@ -1,5 +1,5 @@
 require 'logger'
-require_relative './sql'
+require_relative 'sql'
 
 module Rake
   module TableTask
@@ -83,6 +83,10 @@ module Rake
 
       def self.table_exists? table_name, schema_names
         adapter.table_exists?(table_name, schema_names)
+      end
+
+      def self.glob pattern
+        adapter.glob(pattern)
       end
 
     end

@@ -18,7 +18,6 @@ module Rake
       def self.exists? table_name, schema_names = ['public']
         Db.table_exists?(table_name, schema_names)
       end
-
       self.singleton_class.send(:alias_method, :exist?, :exists?)
 
       def self.mtime table_name
@@ -32,6 +31,11 @@ module Rake
       def self.create_as table_name, data_definition, column_definitions=nil
         Db.create_table table_name, data_definition, column_definitions
       end
+
+      def self.tnmatch pattern, table_name
+        File.fnmatch(pattern, table_name)
+      end
+      self.singleton_class.send(:alias_method, :tnmatch?, :tnmatch)
 
     end
 
