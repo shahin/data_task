@@ -23,7 +23,7 @@ module Rake
       def timestamp
         if Table.exist?(name)
           mtime = Table.mtime(name.to_s)
-          raise "Modified time for table #{name} is unavailable." if mtime.nil?
+          raise "Table #{name} exists but modified time is unavailable." if mtime.nil?
           mtime
         else
           Rake::EARLY
