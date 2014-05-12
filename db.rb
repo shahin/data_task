@@ -74,15 +74,27 @@ module Rake
       end
 
       def self.drop_table table_name
-        adapter.table_mtime(table_name)
+        adapter.drop_table(table_name)
       end
 
       def self.truncate_table table_name
-        adapter.table_mtime(table_name)
+        adapter.truncate_table(table_name)
       end
 
-      def self.table_exists? table_name, schema_names
+      def self.table_exists? table_name, schema_names=nil
         adapter.table_exists?(table_name, schema_names)
+      end
+
+      def self.with_transaction_commit &block
+        adapter.with_transaction_commit &block
+      end
+
+      def self.with_transaction_rollback &block
+        adapter.with_transaction_rollback &block
+      end
+
+      def self.with_transaction do_commit, &block
+        adapter.with_transaction do_commit, &block
       end
 
     end

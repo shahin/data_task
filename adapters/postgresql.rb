@@ -18,40 +18,56 @@ module Rake
           config['password']
         )
         @connection.set_notice_processor do |msg|
-          LOG.info('psql') { msg.chomp }
+          if msg =~ /^ERROR:/
+            LOG.error('psql') { msg.gsub(/\n/,'; ') }
+          else
+            LOG.info('psql') { msg.gsub(/\n/,'; ') }
+          end
         end
       end
 
       def self.execute sql
         connect if @connection.nil?
         begin
-          @connection.exec sql
+          r = @connection.exec sql
+          r.values
         rescue PGError => e
-          LOG.info e.message.chomp
           e
         end
       end
 
+      def self.with_transaction do_commit, &block
+        Db.execute "begin;"
+        yield
+        close_command = do_commit ? "commit;" : "rollback;"
+        Db.execute close_command
+      end
+
+      def self.with_transaction_commit &block
+        with_transaction true, &block
+      end
+
+      def self.with_transaction_rollback &block
+        with_transaction false, &block
+      end
+
       def self.tracking_tables?
-        tracking_table_exists = Sql.exec <<-EOSQL
-          select 1 from information_schema.tables where table_name = '#{TRACKING_TABLE_NAME}'
-        EOSQL
-        !tracking_table_exists.values.empty?
+        table_exists?(TRACKING_TABLE_NAME)
       end
 
       def self.set_up_tracking
-        Sql.exec <<-EOSQL
-          create table #{TRACKING_TABLE_NAME} (
+        create_table TRACKING_TABLE_NAME, nil, "
+          (
             relation_name text,
             relation_type text,
             operation text,
             time timestamp
           )
-        EOSQL
+        ", false
       end
 
       def self.tear_down_tracking
-        Sql.exec "drop table #{TRACKING_TABLE_NAME} cascade"
+        drop_table TRACKING_TABLE_NAME
       end
       
       def self.reset_tracking
@@ -67,27 +83,27 @@ module Rake
       end
 
       def self.truncate_table table_name
-        Sql.exec "truncate table #{table_name}"
+        Db.execute "truncate table #{table_name}"
       end
 
       def self.drop_table table_name
-        Sql.exec "drop table if exists #{table_name} cascade"
+        Db.execute "drop table if exists #{table_name} cascade"
       end
 
-      def self.table_exists? table_name, schema_names
+      def self.table_exists? table_name, schema_names=nil
         n_matches = Sql.get_single_int <<-EOSQL
           select count(*)
           from information_schema.tables 
           where 
-            table_name = '#{table_name}' and
-            table_schema in (#{schema_names.to_quoted_s})
+            table_name = '#{table_name}'
+            #{ "and table_schema in (#{schema_names.to_quoted_s})" if !schema_names.nil?}
         EOSQL
         (n_matches > 0)
       end
 
-      def self.create_table table_name, data_definition, column_definitions, track_table
+      def self.create_table table_name, data_definition, column_definitions, track_table=true
         drop_table table_name
-        Sql.exec <<-EOSQL
+        Db.execute <<-EOSQL
           create table #{table_name} #{column_definitions}
           #{ "as #{data_definition}" if !data_definition.nil? }
         EOSQL
@@ -114,7 +130,7 @@ module Rake
 
         def self.create_tracking_rules table_name
           operations_supported[:by_db_rule].each do |operation|
-            Sql.exec <<-EOSQL
+            Db.execute <<-EOSQL
               create or replace rule #{self.rule_name(table_name,operation)} as 
                 on #{operation} to #{table_name} do also (
                 delete from #{TRACKING_TABLE_NAME} where 
@@ -132,7 +148,7 @@ module Rake
 
         def self.track_creation table_name, n_tuples
           operation = 'create'
-          Sql.exec <<-EOSQL
+          Db.execute <<-EOSQL
             delete from #{TRACKING_TABLE_NAME} where 
               relation_name = '#{table_name}' and 
               relation_type = 'TABLE' and
@@ -146,7 +162,7 @@ module Rake
 
         def self.clear_tracking_rules_for_table table_name
           supported_operations.each do |operation|
-            Sql.exec <<-EOSQL
+            Db.execute <<-EOSQL
               drop rule #{self.rule_name(table_name,operation)} on #{table_name}
             EOSQL
           end
