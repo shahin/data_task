@@ -1,3 +1,4 @@
+require 'yaml'
 require 'logger'
 require_relative './sql'
 
@@ -7,6 +8,7 @@ module Rake
     class Db
 
       LOG = Logger.new(STDOUT)
+      LOG.level = Logger::WARN
       TRACKING_TABLE_NAME = 'tracking'
 
       ADAPTERS = %w'postgresql sqlite'.map{ |a| a.to_sym }

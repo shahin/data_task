@@ -1,6 +1,11 @@
 require_relative './db.rb'
 require_relative './table_task.rb'
 
+require 'rspec/core/rake_task'
+
+RSpec::Core::RakeTask.new(:spec)
+task :default => :spec
+
 task :reset_tracking do
   Rake::TableTask::Db.reset_tracking
 end

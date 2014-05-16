@@ -1,6 +1,4 @@
 require 'time'
-require_relative './util'
-require_relative './db'
 
 module Rake
   module TableTask

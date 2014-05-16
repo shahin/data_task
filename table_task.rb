@@ -1,6 +1,8 @@
-require 'rake/task.rb'
-require 'rake/early_time'
-require_relative './table.rb'
+require 'rubygems'
+require 'bundler/setup'
+
+#require 'rake/task.rb'
+#require_relative './table.rb'
 
 module Rake
   # #########################################################################
