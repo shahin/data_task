@@ -40,3 +40,6 @@ build/
 Session.vim
 .netrwhist
 *~
+
+# host-specific configuration
+/config/database.yml
