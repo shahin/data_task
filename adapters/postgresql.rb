@@ -9,13 +9,13 @@ module Rake
 
       def self.connect
         @connection = PG::Connection.new(
-          config['host'], 
-          config['port'], 
-          nil, 
-          nil, 
-          config['database'], 
-          config['user'], 
-          config['password']
+          config['host'] || localhost,
+          config['port'] || 5432,
+          nil,
+          nil,
+          config['database'],
+          config['user'],
+          config['password'] || ''
         )
         @connection.set_notice_processor do |msg|
           if msg =~ /^ERROR:/
