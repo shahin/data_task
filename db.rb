@@ -1,6 +1,7 @@
 require 'yaml'
 require 'logger'
 require_relative './sql'
+require_relative './util'
 
 module Rake
   module TableTask
@@ -9,16 +10,17 @@ module Rake
 
       LOG = Logger.new(STDOUT)
       LOG.level = Logger::WARN
+
       TRACKING_TABLE_NAME = 'tracking'
 
-      ADAPTERS = %w'postgresql sqlite'.map{ |a| a.to_sym }
       @@adapters = Hash.new
+      @@config_path = 'config/database.yml'
       @@config = nil
 
       @connection = nil
 
       def self.config
-        @@config || @@config = YAML.load_file('database.yml')
+        @@config || @@config = YAML.load_file(@@config_path)
       end
 
       def self.adapter_class adapter_name

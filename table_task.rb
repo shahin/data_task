@@ -1,8 +1,7 @@
 require 'rubygems'
 require 'bundler/setup'
 
-#require 'rake/task.rb'
-#require_relative './table.rb'
+require_relative './table.rb'
 
 module Rake
   # #########################################################################
