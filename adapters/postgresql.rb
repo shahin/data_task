@@ -9,7 +9,7 @@ module Rake
 
       def self.connect
         @connection = PG::Connection.new(
-          config['host'] || localhost,
+          config['host'] || 'localhost',
           config['port'] || 5432,
           nil,
           nil,
