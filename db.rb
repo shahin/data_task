@@ -35,7 +35,7 @@ module Rake
         end
 
         if (klass = @@adapters[adapter_name]).nil?
-          raise "Failed to load adapter class #{adapter_name}: #{e.message}"
+          raise "Failed to load adapter class #{adapter_name}"
         end
 
         klass
@@ -46,60 +46,84 @@ module Rake
       end
 
       def self.connect
+        assert_adapter_implementation adapter, __method__
         adapter.connect
       end
 
       def self.execute sql
+        assert_adapter_implementation adapter, __method__
         adapter.execute sql
       end
 
       def self.tracking_tables?
+        assert_adapter_implementation adapter, __method__
         adapter.tracking_tables?
       end
 
       def self.set_up_tracking
+        assert_adapter_implementation adapter, __method__
         adapter.set_up_tracking
       end
 
       def self.tear_down_tracking
+        assert_adapter_implementation adapter, __method__
         adapter.tear_down_tracking
       end
       
       def self.reset_tracking
+        assert_adapter_implementation adapter, __method__
         adapter.reset_tracking
       end
 
       def self.table_mtime table_name
+        assert_adapter_implementation adapter, __method__
         adapter.table_mtime(table_name)
       end
 
       def self.create_table table_name, data_definition, column_definitions, track_table=true
+        assert_adapter_implementation adapter, __method__
         adapter.create_table(table_name, data_definition, column_definitions, track_table)
       end
 
       def self.drop_table table_name
+        assert_adapter_implementation adapter, __method__
         adapter.drop_table(table_name)
       end
 
       def self.truncate_table table_name
+        assert_adapter_implementation adapter, __method__
         adapter.truncate_table(table_name)
       end
 
       def self.table_exists? table_name, schema_names=nil
+        assert_adapter_implementation adapter, __method__
         adapter.table_exists?(table_name, schema_names)
       end
 
       def self.with_transaction_commit &block
+        assert_adapter_implementation adapter, __method__
         adapter.with_transaction_commit &block
       end
 
       def self.with_transaction_rollback &block
+        assert_adapter_implementation adapter, __method__
         adapter.with_transaction_rollback &block
       end
 
       def self.with_transaction do_commit, &block
+        assert_adapter_implementation adapter, __method__
         adapter.with_transaction do_commit, &block
       end
+
+
+      private
+        
+        def self.assert_adapter_implementation adapter, method
+          if adapter == self
+            raise NotImplementedError, 
+              "Abstract method #{method} is not implemented in the adapter #{self}."
+          end
+        end
 
     end
 
