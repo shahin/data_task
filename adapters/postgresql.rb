@@ -1,4 +1,6 @@
 require 'pg'
+require_relative 'support/transactions'
+require_relative 'support/booleans'
 
 module Rake
   module TableTask
@@ -37,20 +39,8 @@ module Rake
         end
       end
 
-      def self.with_transaction do_commit, &block
-        Db.execute "begin;"
-        yield
-        close_command = do_commit ? "commit;" : "rollback;"
-        Db.execute close_command
-      end
-
-      def self.with_transaction_commit &block
-        with_transaction true, &block
-      end
-
-      def self.with_transaction_rollback &block
-        with_transaction false, &block
-      end
+      extend StandardBooleans
+      extend StandardTransactions
 
       def self.tracking_tables?
         table_exists?(TRACKING_TABLE_NAME)

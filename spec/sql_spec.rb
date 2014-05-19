@@ -15,7 +15,7 @@ module Rake
           expect{Sql.parse_single_value(r)}.to raise_error(TypeError)
         end
         it "returns nil if the results array contains no rows" do
-          r = Sql.get_array('select 1 where false')
+          r = Sql.get_array("select 1 where #{Sql.falsey_value}")
           Sql.parse_single_value(r).should be_nil
         end
         it "returns nil if the results array contains a null value" do

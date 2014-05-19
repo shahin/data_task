@@ -55,6 +55,16 @@ module Rake
         adapter.execute sql
       end
 
+      def self.truthy_value
+        assert_adapter_implementation adapter, __method__
+        adapter.truthy_value
+      end
+
+      def self.falsey_value
+        assert_adapter_implementation adapter, __method__
+        adapter.falsey_value
+      end
+
       def self.tracking_tables?
         assert_adapter_implementation adapter, __method__
         adapter.tracking_tables?

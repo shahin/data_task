@@ -9,6 +9,14 @@ module Rake
         Db.execute(sql)
       end
 
+      def self.truthy_value
+        Db.truthy_value
+      end
+
+      def self.falsey_value
+        Db.falsey_value
+      end
+
       def self.parse_single_value r, &type_logic
         if r.nil? || r.empty? || r == [[]] || r == [[nil]]
           return nil
