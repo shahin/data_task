@@ -105,9 +105,9 @@ module Rake
         adapter.truncate_table(table_name)
       end
 
-      def self.table_exists? table_name, schema_names=nil
+      def self.table_exists? table_name, options = {}
         assert_adapter_implementation adapter, __method__
-        adapter.table_exists?(table_name, schema_names)
+        adapter.table_exists?(table_name, options)
       end
 
       def self.with_transaction_commit &block

@@ -81,13 +81,21 @@ module Rake
         Db.execute "drop table if exists #{table_name} cascade"
       end
 
-      def self.table_exists? table_name, schema_names=nil
+      def self.table_exists? table_name, options = {}
+        options = { :schema_names => nil }.merge(options)
+
+        if !options[:schema_names].nil?
+          schema_conditions_sql = "and table_schema in (#{options[:schema_names].to_quoted_s})"
+        else
+          schema_conditions_sql = 'true'
+        end
+
         n_matches = Sql.get_single_int <<-EOSQL
           select count(*)
           from information_schema.tables 
           where 
-            table_name = '#{table_name}'
-            #{ "and table_schema in (#{schema_names.to_quoted_s})" if !schema_names.nil?}
+            table_name = '#{table_name}' and
+            #{ schema_conditions_sql }
         EOSQL
         (n_matches > 0)
       end
