@@ -32,7 +32,8 @@ module Rake
           r = @connection.exec sql
           r.values
         rescue PGError => e
-          e
+          LOG.info e.message.chomp
+          raise e
         end
       end
 
