@@ -31,18 +31,18 @@ module Rake
       end
 
       def self.set_up_tracking
-        Db.execute <<-EOSQL
-          create table #{TRACKING_TABLE_NAME} (
+        create_table TRACKING_TABLE_NAME, nil, "
+          (
             relation_name text,
             relation_type text,
             operation text,
             time timestamp
           )
-        EOSQL
+        ", false
       end
 
       def self.tear_down_tracking
-        Db.execute "drop table if exists #{TRACKING_TABLE_NAME}"
+        drop_table TRACKING_TABLE_NAME
       end
       
       def self.reset_tracking
@@ -62,7 +62,7 @@ module Rake
       end
 
       def self.drop_table table_name
-        Db.execute "drop table if exists #{table_name} cascade"
+        Db.execute "drop table if exists #{table_name}"
       end
 
       def self.table_exists? table_name, options = {}
@@ -87,15 +87,19 @@ module Rake
         end
       end
 
+      def self.operations_supported
+        {
+          :by_db => operations_supported_by_db,
+          :by_app => ['truncate', 'create']
+        }
+      end
+
 
 
       private
 
-        def self.operations_supported 
-          {
-            :by_db_rule => ['update', 'insert', 'delete'],
-            :by_app => ['create', 'drop']
-          }
+        def self.operations_supported_by_db
+          ['update', 'insert', 'delete']
         end
 
         def self.rule_name table_name, operation
@@ -103,7 +107,7 @@ module Rake
         end
 
         def self.create_tracking_rules table_name
-          operations_supported[:by_db_rule].each do |operation|
+          operations_supported_by_db.each do |operation|
             Db.execute <<-EOSQL
               create trigger #{self.rule_name(table_name,operation)} as 
                 after #{operation} on #{table_name} begin (

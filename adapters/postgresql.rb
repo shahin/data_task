@@ -112,15 +112,19 @@ module Rake
         end
       end
 
+      def self.operations_supported
+        {
+          :by_db => operations_supported_by_db,
+          :by_app => ['truncate', 'create']
+        }
+      end
+
 
 
       private
 
-        def self.operations_supported 
-          {
-            :by_db_rule => ['update','insert','delete'],
-            :by_app => ['truncate', 'create', 'drop']
-          }
+        def self.operations_supported_by_db
+          ['update', 'insert', 'delete']
         end
 
         def self.rule_name table_name, operation
@@ -128,7 +132,7 @@ module Rake
         end
 
         def self.create_tracking_rules table_name
-          operations_supported[:by_db_rule].each do |operation|
+          operations_supported_by_db.each do |operation|
             Db.execute <<-EOSQL
               create or replace rule #{self.rule_name(table_name,operation)} as 
                 on #{operation} to #{table_name} do also (
