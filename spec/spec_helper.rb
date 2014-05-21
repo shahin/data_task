@@ -8,7 +8,11 @@ RSpec.configure do |config|
 
   config.order = "random"
   config.around :each do |test|
-    Rake::TableTask::Db.with_transaction_rollback &test
+    Rake::TableTask::Db.with_transaction_rollback do
+      Rake::TableTask::Db.set_up_tracking
+      test.call
+      Rake::TableTask::Db.tear_down_tracking
+    end
   end
 
 end
