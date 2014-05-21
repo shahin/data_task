@@ -109,8 +109,8 @@ module Rake
         def self.create_tracking_rules table_name
           operations_supported_by_db.each do |operation|
             Db.execute <<-EOSQL
-              create trigger #{self.rule_name(table_name,operation)} as 
-                after #{operation} on #{table_name} begin (
+              create trigger #{self.rule_name(table_name,operation)}
+                after #{operation} on #{table_name} begin
                   update #{TRACKING_TABLE_NAME} 
                   set 
                     operation = '#{operation}',
@@ -118,7 +118,7 @@ module Rake
                   where 
                     relation_name = '#{table_name}' and 
                     relation_type = 'TABLE'
-                );
+                ;
                 end
             EOSQL
           end
@@ -126,7 +126,7 @@ module Rake
 
         def self.track_creation table_name, n_tuples
           operation = 'create'
-          Sql.exec <<-EOSQL
+          Db.execute <<-EOSQL
             delete from #{TRACKING_TABLE_NAME} where 
               relation_name = '#{table_name}' and 
               relation_type = 'TABLE' and
@@ -140,7 +140,7 @@ module Rake
 
         def self.clear_tracking_rules_for_table table_name
           supported_operations.each do |operation|
-            Sql.exec <<-EOSQL
+            Db.execute <<-EOSQL
               drop trigger if exists #{self.rule_name(table_name,operation)} on #{table_name}
             EOSQL
           end
