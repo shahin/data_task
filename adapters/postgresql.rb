@@ -156,18 +156,21 @@ module Rake
           operations_supported_by_db.each do |operation|
             Db.execute <<-EOSQL
               create or replace rule #{self.rule_name(table_name, operation)} as 
-                on #{operation} to #{table_name} do also (
+                on #{operation.to_s} to #{table_name} do also (
+
                   delete from #{TRACKING_TABLE_NAME} where 
                     relation_name = '#{table_name}' and 
                     relation_type = '#{relation_type_values[:table]}' and
                     operation = '#{operation_values[operation]}'
                     ;
+
                   insert into #{TRACKING_TABLE_NAME} values (
                     '#{table_name}', 
                     '#{relation_type_values[:table]}', 
                     '#{operation_values[operation]}', 
                     now()
                   );
+
                 )
             EOSQL
           end
