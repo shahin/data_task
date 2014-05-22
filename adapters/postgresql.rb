@@ -74,11 +74,36 @@ module Rake
       end
 
       def self.truncate_table table_name
+        return if table_name.casecmp(TRACKING_TABLE_NAME) == 0
         Db.execute "truncate table #{table_name}"
+        track_truncate table_name
+      end
+
+      def self.track_truncate table_name
+        Db.execute <<-EOSQL
+          update #{TRACKING_TABLE_NAME}
+          set 
+            operation = 'truncate',
+            time = now()
+          where
+            relation_name = '#{table_name}' and
+            relation_type ilike 'table'
+        EOSQL
       end
 
       def self.drop_table table_name
+        return if table_name.casecmp(TRACKING_TABLE_NAME) == 0
         Db.execute "drop table if exists #{table_name} cascade"
+        track_drop table_name
+      end
+
+      def self.track_drop table_name
+        Db.execute <<-EOSQL
+          delete from #{TRACKING_TABLE_NAME} 
+          where 
+            relation_name = '#{table_name}' and 
+            relation_type ilike 'table'
+        EOSQL
       end
 
       def self.table_exists? table_name, options = {}
