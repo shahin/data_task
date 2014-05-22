@@ -12,6 +12,27 @@ module Rake
       LOG.level = Logger::WARN
 
       TRACKING_TABLE_NAME = 'tracking'
+      TRACKING_TABLE_COLUMNS = { 
+        :relation_name => { :data_type => :text },
+        :relation_type => {
+          :data_type => :text,
+          :values => {
+            :table => 'table', 
+            :view => 'view'
+          }
+        },
+        :operation => {
+          :data_type => :text,
+          :values => {
+            :create => 'create', 
+            :insert => 'insert',
+            :update => 'update',
+            :truncate => 'truncate',
+            :delete => 'delete'
+          }
+        },
+        :time => { :data_type => :timestamp }
+      }
 
       @@adapters = Hash.new
       @@config_path = 'config/database.yml'
@@ -24,27 +45,9 @@ module Rake
       end
 
       def self.tracking_table_columns
-        { 
-          :relation_name => { :data_type => :text },
-          :relation_type => {
-            :data_type => :text,
-            :values => {
-              :table => 'table', 
-              :view => 'view'
-            }
-          },
-          :operation => {
-            :data_type => :text,
-            :values => {
-              :create => 'create', 
-              :insert => 'insert',
-              :update => 'update',
-              :truncate => 'truncate',
-              :delete => 'delete'
-            }
-          },
-          :time => { :data_type => :timestamp }
-        }
+        # call super.merge({overrides}) in Adapter.tracking_table_columns
+        default_adapter_implementation(adapter, __method__) { TRACKING_TABLE_COLUMNS } || 
+          adapter.tracking_table_columns
       end
 
       def self.operation_values
@@ -160,10 +163,24 @@ module Rake
 
       private
         
+        # Prevent infinite recursion due to an unimplmented abstract method
+        #
+        # When a pass-through abstract method is unimplemented in the child class, the base class
+        # calls the method on the child class, which falls back on the base class implementation,
+        # which calls the method on the child class, ad infinitum. This assert raises an error
+        # if it is called in the context of the adapter (the child class). If we call this assert
+        # in a base class's implementation, then raising this error breaks recursion in the second
+        # call of the unimplemented method (the base class's call, then the child class's call).
         def self.assert_adapter_implementation adapter, method
-          if adapter == self
+          default_adapter_implementation(adapter, method) {
             raise NotImplementedError, 
               "Abstract method #{method} is not implemented in the adapter #{self}."
+          }
+        end
+
+        def self.default_adapter_implementation adapter, method, &default
+          if adapter == self
+            default.call
           end
         end
 
