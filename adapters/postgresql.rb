@@ -47,14 +47,10 @@ module Rake
       end
 
       def self.set_up_tracking
-        create_table TRACKING_TABLE_NAME, nil, "
-          (
-            relation_name text,
-            relation_type text,
-            operation text,
-            time timestamp
-          )
-        ", false
+        column_definitions = tracking_table_columns.map do |col,col_defn|
+          col.to_s + ' ' + col_defn[:data_type].to_s
+        end.join(', ')
+        create_table TRACKING_TABLE_NAME, nil, " (#{column_definitions})", false
       end
 
       def self.tear_down_tracking
@@ -83,11 +79,11 @@ module Rake
         Db.execute <<-EOSQL
           update #{TRACKING_TABLE_NAME}
           set 
-            operation = 'truncate',
+            operation = '#{operation_values[:truncate]}',
             time = now()
           where
             relation_name = '#{table_name}' and
-            relation_type ilike 'table'
+            relation_type = '#{relation_type_values[:table]}'
         EOSQL
       end
 
@@ -102,7 +98,7 @@ module Rake
           delete from #{TRACKING_TABLE_NAME} 
           where 
             relation_name = '#{table_name}' and 
-            relation_type ilike 'table'
+            relation_type = '#{relation_type_values[:table]}'
         EOSQL
       end
 
@@ -140,7 +136,7 @@ module Rake
       def self.operations_supported
         {
           :by_db => operations_supported_by_db,
-          :by_app => ['truncate', 'create']
+          :by_app => [:truncate, :create]
         }
       end
 
@@ -149,25 +145,28 @@ module Rake
       private
 
         def self.operations_supported_by_db
-          ['update', 'insert', 'delete']
+          [:update, :insert, :delete]
         end
 
         def self.rule_name table_name, operation
-          "#{table_name}_#{operation}"
+          "#{table_name}_#{operation.to_s}"
         end
 
         def self.create_tracking_rules table_name
           operations_supported_by_db.each do |operation|
             Db.execute <<-EOSQL
-              create or replace rule #{self.rule_name(table_name,operation)} as 
+              create or replace rule #{self.rule_name(table_name, operation)} as 
                 on #{operation} to #{table_name} do also (
-                delete from #{TRACKING_TABLE_NAME} where 
-                  relation_name = '#{table_name}' and 
-                  relation_type = 'TABLE' and
-                  operation = '#{operation}'
-                  ;
-                insert into #{TRACKING_TABLE_NAME} values (
-                  '#{table_name}', 'TABLE', '#{operation}', now()
+                  delete from #{TRACKING_TABLE_NAME} where 
+                    relation_name = '#{table_name}' and 
+                    relation_type = '#{relation_type_values[:table]}' and
+                    operation = '#{operation_values[operation]}'
+                    ;
+                  insert into #{TRACKING_TABLE_NAME} values (
+                    '#{table_name}', 
+                    '#{relation_type_values[:table]}', 
+                    '#{operation_values[operation]}', 
+                    now()
                   );
                 )
             EOSQL
@@ -175,15 +174,18 @@ module Rake
         end
 
         def self.track_creation table_name, n_tuples
-          operation = 'create'
+          operation = :create
           Db.execute <<-EOSQL
-            delete from #{TRACKING_TABLE_NAME} where 
-              relation_name = '#{table_name}' and 
-              relation_type = 'TABLE' and
-              operation = '#{operation}'
+            delete from #{TRACKING_TABLE_NAME} where
+              relation_name = '#{table_name}' and
+              relation_type = '#{relation_type_values[:table]}' and
+              operation = '#{operation_values[operation]}'
               ;
             insert into #{Db::TRACKING_TABLE_NAME} values (
-              '#{table_name}', 'TABLE', '#{operation}', now()
+              '#{table_name}',
+              '#{relation_type_values[:table]}',
+              '#{operation_values[operation]}',
+              now()
             );
           EOSQL
         end
@@ -191,7 +193,7 @@ module Rake
         def self.clear_tracking_rules_for_table table_name
           supported_operations.each do |operation|
             Db.execute <<-EOSQL
-              drop rule #{self.rule_name(table_name,operation)} on #{table_name}
+              drop rule #{self.rule_name(table_name, operation)} on #{table_name}
             EOSQL
           end
         end

@@ -52,8 +52,8 @@ module Rake
             select 1 from #{Db::TRACKING_TABLE_NAME} 
             where 
               relation_name = '#{test_table}' and
-              relation_type ilike 'table' and
-              operation ilike 'create'
+              relation_type = '#{Db.relation_type_values[:table]}' and
+              operation = '#{Db.operation_values[:create]}'
           EOSQL
           expect(tracked_create).to be_true
 
@@ -69,7 +69,7 @@ module Rake
             select 1 from #{Db::TRACKING_TABLE_NAME} 
             where 
               relation_name = '#{test_table}' and
-              relation_type ilike 'table'
+              relation_type = '#{Db.relation_type_values[:table]}'
           EOSQL
           expect(still_tracking_table).to be_false
 
@@ -87,8 +87,8 @@ module Rake
             select 1 from #{Db::TRACKING_TABLE_NAME} 
             where 
               relation_name = '#{test_table}' and
-              relation_type ilike 'table' and
-              operation ilike 'insert'
+              relation_type = '#{Db.relation_type_values[:table]}' and
+              operation = '#{Db.operation_values[:insert]}'
           EOSQL
           expect(tracked_insert).to be_true
 
@@ -110,8 +110,8 @@ module Rake
             select 1 from #{Db::TRACKING_TABLE_NAME} 
             where 
               relation_name = '#{test_table}' and
-              relation_type ilike 'table' and
-              operation ilike 'update'
+              relation_type = '#{Db.relation_type_values[:table]}' and
+              operation = '#{Db.operation_values[:update]}'
           EOSQL
           expect(tracked_insert).to be_true
 
@@ -127,8 +127,8 @@ module Rake
             select 1 from #{Db::TRACKING_TABLE_NAME} 
             where 
               relation_name = '#{test_table}' and
-              relation_type ilike 'table' and
-              operation = 'truncate'
+              relation_type = '#{Db.relation_type_values[:table]}' and
+              operation = '#{Db.operation_values[:truncate]}'
           EOSQL
           expect(tracked_truncate).to be_true
 

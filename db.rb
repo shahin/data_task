@@ -23,6 +23,38 @@ module Rake
         @@config || @@config = YAML.load_file(@@config_path)
       end
 
+      def self.tracking_table_columns
+        { 
+          :relation_name => { :data_type => :text },
+          :relation_type => {
+            :data_type => :text,
+            :values => {
+              :table => 'table', 
+              :view => 'view'
+            }
+          },
+          :operation => {
+            :data_type => :text,
+            :values => {
+              :create => 'create', 
+              :insert => 'insert',
+              :update => 'update',
+              :truncate => 'truncate',
+              :delete => 'delete'
+            }
+          },
+          :time => { :data_type => :timestamp }
+        }
+      end
+
+      def self.operation_values
+        tracking_table_columns[:operation][:values]
+      end
+
+      def self.relation_type_values
+        tracking_table_columns[:relation_type][:values]
+      end
+
       def self.adapter_class adapter_name
         adapter_name = adapter_name.to_sym
 
