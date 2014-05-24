@@ -1,3 +1,10 @@
-adapter: postgresql
-database: travis_ci_test
-username: postgres
+sqlite_test:
+  adapter: sqlite
+  database: travis_ci_test
+
+postgresql_test:
+  adapter: postgresql
+  database: travis_ci_test
+  host: localhost
+  port: 5432
+  username: postgres

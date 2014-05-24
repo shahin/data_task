@@ -5,7 +5,13 @@ rvm:
 services: postgresql
 before_script:
   - psql -c 'create database travis_ci_test;' -U postgres
+  - sqlite3 travis_ci_test ''
   - "cp config/database.yml.test config/database.yml"
+
+env:
+  - TABLETASK_ENV=postgresql_test
+  - TABLETASK_ENV=sqlite_test
+
 notifications:
   email:
     on_success: never

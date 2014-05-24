@@ -41,7 +41,8 @@ module Rake
       @connection = nil
 
       def self.config
-        @@config || @@config = YAML.load_file(@@config_path)
+        db_env = ENV['TABLETASK_ENV'] || 'sqlite_test'
+        @@config || @@config = YAML.load_file(@@config_path)[db_env]
       end
 
       def self.tracking_table_columns
