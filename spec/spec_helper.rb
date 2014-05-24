@@ -1,5 +1,6 @@
 require_relative '../sql.rb'
 require_relative '../db.rb'
+require_relative '../table.rb'
 
 RSpec.configure do |config|
 
