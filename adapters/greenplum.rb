@@ -1,118 +1,99 @@
 require 'pg'
+require_relative 'support/transactions'
+require_relative 'support/booleans'
 
 module Rake
   module TableTask
 
-    class Greenplum < Db
+    class Greenplum < PostgreSQL
 
-      TRACKING_TABLE_NAME = 'tracking'
-      TABLES_TO_TRACK = 'tables_to_track'
+      TRACKING_VIEW_NAME = "tracking"
       @@adapters[:greenplum] = self
 
-      def self.connect
-        @connection = PG::Connection.new(
-          config['host'], 
-          config['port'], 
-          nil, 
-          nil, 
-          config['database'], 
-          config['user'], 
-          config['password']
-        )
-        @connection.set_notice_processor do |msg|
-          LOG.info('psql') { msg.chomp }
-        end
-      end
-
-      def self.execute sql
-        connect if @connection.nil?
-        begin
-          @connection.exec sql
-        rescue PGError => e
-          LOG.info e.message.chomp
-          e
-        end
-      end
-
-      def self.tracking_tables?
-        tracking_table_exists = Sql.exec <<-EOSQL
-          select 1 from information_schema.views where table_name = '#{TRACKING_TABLE_NAME}'
-        EOSQL
-        !tracking_table_exists.values.empty?
-      end
-
       def self.set_up_tracking
-        Table.create TABLES_TO_TRACK, nil, "(table_name text)"
+        super
+
+        # Greenplum tracks CREATE and TRUNCATE operations in its pg_stat_operations system view.
+        # Join this view with the tracking table so that we can track CREATE and TRUNCATE from within
+        # the database instead of from application code.
         Sql.exec <<-EOSQL
-          create view #{TRACKING_TABLE_NAME} as (
+          create view #{TRACKING_VIEW_NAME} as 
+          select
+            relation_name,
+            relation_type,
+            operation,
+            time
+          from (
+
             select
-              objname as relation_name,
-              subtype as relation_type,
-              actionname as operation,
-              statime as time
-            from 
-              pg_stat_operations pso
-              join #{TABLES_TO_TRACK} ttt on (pso.objname = ttt.table_name)
-          )
+              a.*,
+              rank() over (partition by relation_name, relation_type order by time)
+            from (
+
+              -- select all CREATE and TRUNCATE operations tracked by Greenplum
+              select
+                pg_stat_operations.objname as relation_name,
+                pg_stat_operations.subtype as relation_type,
+                pg_stat_operations.actionname as operation,
+                pg_stat_operations.statime as time
+              from pg_stat_operations
+
+              union all
+
+              -- select all operations tracked by Greenplum (PostgreSQL) table rules 
+              select
+                relation_name,
+                relation_type,
+                operation,
+                time
+              from #{TRACKING_TABLE_NAME} ttb
+
+              ) a
+            ) 
+          -- take only the latest operation per table
+          where rank = 1
         EOSQL
       end
 
       def self.tear_down_tracking
-        Sql.exec "drop view #{TRACKING_TABLE_NAME} cascade"
-        drop_table TABLES_TO_TRACK
-      end
-      
-      def self.reset_tracking
-        truncate_table TABLES_TO_TRACK
-      end
-
-      def self.table_mtime table_name
-        Sql.get_single_time <<-EOSQL
-          select max(time)
-          from #{TRACKING_TABLE_NAME} 
-          where relation_name = '#{table_name}'
-        EOSQL
+        Db.execute "drop view #{TRACKING_VIEW_NAME} cascade"
+        drop_table TRACKING_TABLE_NAME
       end
 
       def self.truncate_table table_name
-        Sql.exec "truncate table #{table_name}"
+        return if table_name.casecmp(TRACKING_TABLE_NAME) == 0
+        Db.execute "truncate table #{table_name}"
       end
 
       def self.drop_table table_name
-        Sql.exec "drop table if exists #{table_name} cascade"
+        Db.execute "drop table if exists #{table_name} cascade"
+        return if table_name.casecmp("#{TRACKING_TABLE_NAME}_base") == 0
+        track_drop table_name
       end
 
-      def self.table_exists? table_name, schema_names
-        n_matches = Sql.get_single_int <<-EOSQL
-          select count(*)
-          from information_schema.tables 
-          where 
-            table_name = '#{table_name}' and
-            table_schema in (#{schema_names.to_quoted_s})
-        EOSQL
-        (n_matches > 0)
-      end
-
-      def self.create_table table_name, data_definition, column_definitions, track_table
+      def self.create_table table_name, data_definition, column_definitions, track_table=true
         drop_table table_name
-        Sql.exec <<-EOSQL
+        Db.execute <<-EOSQL
           create table #{table_name} #{column_definitions}
           #{ "as #{data_definition}" if !data_definition.nil? }
         EOSQL
         if track_table
-          add_table_to_tracked_tables(table_name)
+          create_tracking_rules(table_name)
         end
       end
 
+      def self.operations_supported
+        {
+          :by_db => operations_supported_by_db,
+          :by_app => []
+        }
+      end
 
 
       private
 
-        def self.add_table_to_tracked_tables table_name
-          Sql.exec <<-EOSQL
-            delete from #{TABLES_TO_TRACK} where table_name = '#{table_name}';
-            insert into #{TABLES_TO_TRACK} values ('#{table_name}');
-          EOSQL
+        def self.operations_supported_by_db
+          [:update, :insert, :delete, :truncate, :create]
         end
 
     end
