@@ -11,7 +11,7 @@ module Rake
         self.class.create_as(@name, data_definition, column_definitions)
       end
 
-      def mtime table_name
+      def mtime
         self.class.mtime(@name)
       end
 
