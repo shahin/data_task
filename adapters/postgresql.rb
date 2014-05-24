@@ -88,8 +88,8 @@ module Rake
       end
 
       def self.drop_table table_name
-        return if table_name.casecmp(TRACKING_TABLE_NAME) == 0
         Db.execute "drop table if exists #{table_name} cascade"
+        return if table_name.casecmp(TRACKING_TABLE_NAME) == 0
         track_drop table_name
       end
 
