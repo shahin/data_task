@@ -80,7 +80,7 @@ module Rake
           update #{TRACKING_TABLE_NAME}
           set 
             operation = '#{operation_values[:truncate]}',
-            time = now()
+            time = clock_timestamp()
           where
             relation_name = '#{table_name}' and
             relation_type = '#{relation_type_values[:table]}'
@@ -160,15 +160,14 @@ module Rake
 
                   delete from #{TRACKING_TABLE_NAME} where 
                     relation_name = '#{table_name}' and 
-                    relation_type = '#{relation_type_values[:table]}' and
-                    operation = '#{operation_values[operation]}'
+                    relation_type = '#{relation_type_values[:table]}'
                     ;
 
                   insert into #{TRACKING_TABLE_NAME} values (
                     '#{table_name}', 
                     '#{relation_type_values[:table]}', 
                     '#{operation_values[operation]}', 
-                    now()
+                    clock_timestamp()
                   );
 
                 )
@@ -181,14 +180,13 @@ module Rake
           Db.execute <<-EOSQL
             delete from #{TRACKING_TABLE_NAME} where
               relation_name = '#{table_name}' and
-              relation_type = '#{relation_type_values[:table]}' and
-              operation = '#{operation_values[operation]}'
+              relation_type = '#{relation_type_values[:table]}'
               ;
             insert into #{Db::TRACKING_TABLE_NAME} values (
               '#{table_name}',
               '#{relation_type_values[:table]}',
               '#{operation_values[operation]}',
-              now()
+              clock_timestamp()
             );
           EOSQL
         end
