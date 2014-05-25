@@ -7,7 +7,7 @@ module Rake
 
     class Greenplum < PostgreSQL
 
-      TRACKING_VIEW_NAME = "tracking"
+      TRACKING_VIEW_NAME = "last_operation"
       @@adapters[:greenplum] = self
 
       def self.set_up_tracking

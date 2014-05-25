@@ -43,7 +43,7 @@ module Rake
       extend StandardTransactions
 
       def self.tracking_tables?
-        table_exists?(TRACKING_TABLE_NAME)
+        table_exists?(TRACKING_VIEW_NAME)
       end
 
       def self.set_up_tracking
@@ -51,6 +51,7 @@ module Rake
           col.to_s + ' ' + col_defn[:data_type].to_s
         end.join(', ')
         create_table TRACKING_TABLE_NAME, nil, " (#{column_definitions})", false
+        create_view TRACKING_VIEW_NAME, "select * from #{TRACKING_TABLE_NAME}"
       end
 
       def self.tear_down_tracking
@@ -131,6 +132,14 @@ module Rake
           create_tracking_rules(table_name)
           track_creation table_name, 0
         end
+      end
+
+      def self.create_view view_name, view_definition
+        drop_view view_name
+        Db.execute <<-EOSQL
+          create view #{view_name} as
+          #{view_definition}
+        EOSQL
       end
 
       def self.operations_supported

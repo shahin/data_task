@@ -11,7 +11,9 @@ module Rake
       LOG = Logger.new(STDOUT)
       LOG.level = Logger::WARN
 
-      TRACKING_TABLE_NAME = 'tracking'
+      TRACKING_TABLE_NAME = 'operations'
+      TRACKING_VIEW_NAME = 'last_operations'
+
       TRACKING_TABLE_COLUMNS = { 
         :relation_name => { :data_type => :text },
         :relation_type => {
@@ -134,6 +136,16 @@ module Rake
       def self.drop_table table_name
         assert_adapter_implementation adapter, __method__
         adapter.drop_table(table_name)
+      end
+
+      def self.create_view view_name, view_definition
+        assert_adapter_implementation adapter, __method__
+        adapter.create_view(view_name, view_definition)
+      end
+
+      def self.drop_view view_name
+        assert_adapter_implementation adapter, __method__
+        adapter.drop_view(view_name)
       end
 
       def self.truncate_table table_name
