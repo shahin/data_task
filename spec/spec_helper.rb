@@ -1,3 +1,7 @@
+# https://coveralls.io
+require 'coveralls'
+Coveralls.wear!
+
 require_relative '../sql.rb'
 require_relative '../db.rb'
 require_relative '../table.rb'
