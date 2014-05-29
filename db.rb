@@ -11,10 +11,9 @@ module Rake
       LOG = Logger.new(STDOUT)
       LOG.level = Logger::WARN
 
-      TRACKING_TABLE_NAME = 'operations'
-      TRACKING_VIEW_NAME = 'last_operations'
+      TABLE_TRACKER_NAME = 'last_operations'
 
-      TRACKING_TABLE_COLUMNS = { 
+      TABLE_TRACKER_COLUMNS = { 
         :relation_name => { :data_type => :text },
         :relation_type => {
           :data_type => :text,
@@ -47,18 +46,18 @@ module Rake
         @@config || @@config = YAML.load_file(@@config_path)[db_env]
       end
 
-      def self.tracking_table_columns
-        # call super.merge({overrides}) in Adapter.tracking_table_columns
-        default_adapter_implementation(adapter, __method__) { TRACKING_TABLE_COLUMNS } || 
-          adapter.tracking_table_columns
+      def self.table_tracker_columns
+        # call super.merge({overrides}) in Adapter.table_tracker_columns
+        default_adapter_implementation(adapter, __method__) { TABLE_TRACKER_COLUMNS } || 
+          adapter.table_tracker_columns
       end
 
       def self.operation_values
-        tracking_table_columns[:operation][:values]
+        table_tracker_columns[:operation][:values]
       end
 
       def self.relation_type_values
-        tracking_table_columns[:relation_type][:values]
+        table_tracker_columns[:relation_type][:values]
       end
 
       def self.adapter_class adapter_name
@@ -156,6 +155,11 @@ module Rake
       def self.table_exists? table_name, options = {}
         assert_adapter_implementation adapter, __method__
         adapter.table_exists?(table_name, options)
+      end
+
+      def self.view_exists? table_name, options = {}
+        assert_adapter_implementation adapter, __method__
+        adapter.view_exists?(table_name, options)
       end
 
       def self.with_transaction_commit &block

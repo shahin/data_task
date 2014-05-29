@@ -49,7 +49,7 @@ module Rake
 
           Db.create_table test_table, nil, '(var1 text)'
            tracked_create = Sql.get_single_int <<-EOSQL
-            select 1 from #{Db::TRACKING_TABLE_NAME} 
+            select 1 from #{Db::TABLE_TRACKER_NAME} 
             where 
               relation_name = '#{test_table}' and
               relation_type = '#{Db.relation_type_values[:table]}' and
@@ -66,7 +66,7 @@ module Rake
           Db.create_table test_table, nil, '(var1 text)'
           Db.drop_table test_table
           still_tracking_table = Sql.get_single_int <<-EOSQL
-            select 1 from #{Db::TRACKING_TABLE_NAME} 
+            select 1 from #{Db::TABLE_TRACKER_NAME} 
             where 
               relation_name = '#{test_table}' and
               relation_type = '#{Db.relation_type_values[:table]}'
@@ -84,7 +84,7 @@ module Rake
             insert into #{test_table} values ('a')
           EOSQL
           tracked_insert = Sql.get_single_int <<-EOSQL
-            select 1 from #{Db::TRACKING_TABLE_NAME} 
+            select 1 from #{Db::TABLE_TRACKER_NAME} 
             where 
               relation_name = '#{test_table}' and
               relation_type = '#{Db.relation_type_values[:table]}' and
@@ -107,7 +107,7 @@ module Rake
           EOSQL
 
           tracked_insert = Sql.get_single_int <<-EOSQL
-            select 1 from #{Db::TRACKING_TABLE_NAME} 
+            select 1 from #{Db::TABLE_TRACKER_NAME} 
             where 
               relation_name = '#{test_table}' and
               relation_type = '#{Db.relation_type_values[:table]}' and
@@ -124,7 +124,7 @@ module Rake
           Db.create_table test_table, nil, '(var1 text)'
           Db.truncate_table test_table
           tracked_truncate = Sql.get_single_int <<-EOSQL
-            select 1 from #{Db::TRACKING_TABLE_NAME} 
+            select 1 from #{Db::TABLE_TRACKER_NAME} 
             where 
               relation_name = '#{test_table}' and
               relation_type = '#{Db.relation_type_values[:table]}' and
