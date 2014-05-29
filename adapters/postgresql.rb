@@ -75,18 +75,6 @@ module Rake
         track_truncate table_name
       end
 
-      def self.track_truncate table_name
-        Db.execute <<-EOSQL
-          update #{TABLE_TRACKER_NAME}
-          set 
-            operation = '#{operation_values[:truncate]}',
-            time = clock_timestamp()
-          where
-            relation_name = '#{table_name}' and
-            relation_type = '#{relation_type_values[:table]}'
-        EOSQL
-      end
-
       def self.drop_table table_name
         Db.execute "drop table if exists #{table_name} cascade"
         return if table_name.casecmp(TABLE_TRACKER_NAME) == 0
@@ -139,6 +127,10 @@ module Rake
           create view #{view_name} as
           #{view_definition}
         EOSQL
+      end
+
+      def self.drop_view view_name
+        Db.execute "drop view if exists #{table_name} cascade"
       end
 
       def self.operations_supported
@@ -196,6 +188,18 @@ module Rake
               '#{operation_values[operation]}',
               clock_timestamp()
             );
+          EOSQL
+        end
+
+        def self.track_truncate table_name
+          Db.execute <<-EOSQL
+            update #{TABLE_TRACKER_NAME}
+            set 
+              operation = '#{operation_values[:truncate]}',
+              time = clock_timestamp()
+            where
+              relation_name = '#{table_name}' and
+              relation_type = '#{relation_type_values[:table]}'
           EOSQL
         end
 
