@@ -14,12 +14,12 @@ module Rake
       def self.set_up_tracking
         super
 
-        Sql.exec "alter table #{TABLE_TRACKER_NAME} rename to #{TABLE_TRACKER_HELPER_NAME}"
+        Db.execute "alter table #{TABLE_TRACKER_NAME} rename to #{TABLE_TRACKER_HELPER_NAME}"
 
         # Greenplum tracks CREATE and TRUNCATE operations in its pg_stat_operations system view.
         # Join this view with the tracking table so that we can track CREATE and TRUNCATE from within
         # the database instead of from application code.
-        Sql.exec <<-EOSQL
+        Db.execute <<-EOSQL
           create view #{TABLE_TRACKER_NAME} as 
           select
             relation_name,
@@ -52,7 +52,7 @@ module Rake
               from #{TABLE_TRACKER_HELPER_NAME} ttb
 
               ) a
-            ) 
+            ) b 
           -- take only the latest operation per table
           where rank = 1
         EOSQL
@@ -65,7 +65,8 @@ module Rake
 
       def self.drop_table table_name
         Db.execute "drop table if exists #{table_name} cascade"
-        return if table_name.casecmp(TABLE_TRACKER_HELPER_NAME) == 0
+        return if table_name.casecmp(TABLE_TRACKER_HELPER_NAME) == 0 || 
+          table_name.casecmp(TABLE_TRACKER_NAME) == 0
         track_drop table_name
       end
 
