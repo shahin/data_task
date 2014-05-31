@@ -4,8 +4,8 @@ rvm:
   - 1.9.3
 services: postgresql
 before_script:
-  - psql -c 'create database travis_ci_test;' -U postgres
-  - sqlite3 travis_ci_test ''
+  - psql -c 'create database ci_test;' -U postgres
+  - sqlite3 ci_test ''
   - "cp config/database.yml.test config/database.yml"
 
 env:
