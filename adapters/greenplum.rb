@@ -79,7 +79,7 @@ module Rake
 
       private
 
-        def self.tracK_creation table_name, n_tuples
+        def self.track_creation table_name, n_tuples
           # nothing to do; Greenplum tracks this operation in system tables already
           return nil
         end
