@@ -16,7 +16,7 @@ module Rake
           nil,
           nil,
           config['database'],
-          config['user'],
+          config['username'],
           config['password'] || ''
         )
         @connection.set_notice_processor do |msg|
