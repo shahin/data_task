@@ -214,14 +214,6 @@ module Rake
           EOSQL
         end
 
-        def self.clear_tracking_rules_for_table table_name
-          operations_support_by_db_rules.each do |operation|
-            Db.execute <<-EOSQL
-              drop rule #{self.rule_name(table_name, operation)} on #{table_name}
-            EOSQL
-          end
-        end
-
         def self.relation_exists? relation_name, relation_type, options = {}
           options = { :schema_names => nil }.merge(options)
 
