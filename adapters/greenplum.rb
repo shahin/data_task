@@ -11,6 +11,20 @@ module Rake
       TABLE_TRACKER_HELPER_NAME = "operations"
       @@adapters[:greenplum] = self
 
+      def self.table_tracker_columns
+        # upcase all enum'd column values because GP system tables store them in upcase
+        cols = super
+        cols.each do |k1,v1|
+          cols[k1].each do |k2, v2|
+            if k2 == :values
+              cols[k1][k2].each do |k3, v3|
+                cols[k1][k2][k3] = v3.upcase
+              end
+            end
+          end
+        end
+      end
+
       def self.set_up_tracking
         super
 
