@@ -130,7 +130,7 @@ module Rake
       end
 
       def self.drop_view view_name
-        Db.execute "drop view if exists #{table_name} cascade"
+        Db.execute "drop view if exists #{view_name} cascade"
       end
 
       def self.operations_supported
