@@ -12,7 +12,9 @@ module Rake
       @@adapters[:greenplum] = self
 
       def self.table_tracker_columns
+        cols = super
         cols[:relation_type][:values][:table] = 'TABLE'
+        cols
       end
 
       def self.set_up_tracking
