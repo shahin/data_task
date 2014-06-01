@@ -56,6 +56,28 @@ module Rake
           -- take only the latest operation per table
           where rank = 1
         EOSQL
+
+        # make sure we do deletes and inserts on the helper table, not the view
+        Db.execute <<-EOSQL
+          create rule delete_operation_record as on delete to #{TABLE_TRACKER_NAME} 
+            do instead
+            delete from #{TABLE_TRACKER_HELPER_NAME} 
+            where
+              relation_name = OLD.relation_name and
+              relation_type = OLD.relation_type and
+              opration = OLD.operation
+          ;
+
+          create rule insert_operation_record as on insert to #{TABLE_TRACKER_NAME} 
+            do instead
+            insert into #{TABLE_TRACKER_HELPER_NAME} values (
+              NEW.relation_name,
+              NEW.relation_type,
+              NEW.operation,
+              NEW.time
+            )
+          ;
+        EOSQL
       end
 
       def self.tear_down_tracking
