@@ -5,7 +5,8 @@ module Rake
 
     describe Db do
 
-      test_table = "test"
+      test_table = "test_table"
+      test_view = "test_view"
 
       it "finds a table when it exists" do
         if !Db.table_exists?(test_table)
@@ -44,12 +45,44 @@ module Rake
         end
       end
 
+      it "creates a view when called to" do
+        with_tracking do
+
+          Db.create_table test_table, nil, '(var1 text)'
+          Db.create_view test_view, "select * from #{test_table}"
+          expect(Db.view_exists?(test_view)).to be_true
+
+        end
+      end
+
+      it "drops a view when called to" do
+        with_tracking do
+
+          Db.create_table test_table, nil, '(var1 text)'
+          Db.create_view test_view, "select * from #{test_table}"
+          Db.drop_view test_view
+          expect(Db.view_exists?(test_view)).to be_false
+
+        end
+      end
+
+      it "drops a view when the underlying table is dropped" do
+        with_tracking do
+
+          Db.create_table test_table, nil, '(var1 text)'
+          Db.create_view test_view, "select * from #{test_table}"
+          Db.drop_table test_table
+          expect(Db.view_exists?(test_view)).to be_false
+
+        end
+      end
+
       it "updates the tracking table when it creates a table" do
         with_tracking do
 
           Db.create_table test_table, nil, '(var1 text)'
            tracked_create = Sql.get_single_int <<-EOSQL
-            select 1 from #{Db::TRACKING_TABLE_NAME} 
+            select 1 from #{Db::TABLE_TRACKER_NAME} 
             where 
               relation_name = '#{test_table}' and
               relation_type = '#{Db.relation_type_values[:table]}' and
@@ -66,7 +99,7 @@ module Rake
           Db.create_table test_table, nil, '(var1 text)'
           Db.drop_table test_table
           still_tracking_table = Sql.get_single_int <<-EOSQL
-            select 1 from #{Db::TRACKING_TABLE_NAME} 
+            select 1 from #{Db::TABLE_TRACKER_NAME} 
             where 
               relation_name = '#{test_table}' and
               relation_type = '#{Db.relation_type_values[:table]}'
@@ -84,7 +117,7 @@ module Rake
             insert into #{test_table} values ('a')
           EOSQL
           tracked_insert = Sql.get_single_int <<-EOSQL
-            select 1 from #{Db::TRACKING_TABLE_NAME} 
+            select 1 from #{Db::TABLE_TRACKER_NAME} 
             where 
               relation_name = '#{test_table}' and
               relation_type = '#{Db.relation_type_values[:table]}' and
@@ -98,16 +131,16 @@ module Rake
       it "updates the tracking table on update on a tracked table" do
         with_tracking do
 
-          Db.create_table test_table, nil, '(var1 text)'
+          Db.create_table test_table, nil, '(var1 text, var2 text)'
           Db.execute <<-EOSQL
-            insert into #{test_table} values ('a')
+            insert into #{test_table} values ('a', 'a')
           EOSQL
           Db.execute <<-EOSQL
-            update #{test_table} set var1 = 'b' where var1 = 'a'
+            update #{test_table} set var2 = 'b' where var1 = 'a'
           EOSQL
 
           tracked_insert = Sql.get_single_int <<-EOSQL
-            select 1 from #{Db::TRACKING_TABLE_NAME} 
+            select 1 from #{Db::TABLE_TRACKER_NAME} 
             where 
               relation_name = '#{test_table}' and
               relation_type = '#{Db.relation_type_values[:table]}' and
@@ -124,7 +157,7 @@ module Rake
           Db.create_table test_table, nil, '(var1 text)'
           Db.truncate_table test_table
           tracked_truncate = Sql.get_single_int <<-EOSQL
-            select 1 from #{Db::TRACKING_TABLE_NAME} 
+            select 1 from #{Db::TABLE_TRACKER_NAME} 
             where 
               relation_name = '#{test_table}' and
               relation_type = '#{Db.relation_type_values[:table]}' and

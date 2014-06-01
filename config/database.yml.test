@@ -8,3 +8,10 @@ postgresql_test:
   host: localhost
   port: 5432
   username: postgres
+
+greenplum_test:
+  adapter: greenplum
+  database: ci_test
+  host: greenplum-host
+  port: 5432
+  username: gpadmin
