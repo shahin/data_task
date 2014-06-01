@@ -135,7 +135,13 @@ module Rake
         EOSQL
       end
 
+
+
       private
+
+        def operations_supported_by_db
+          operations_supported_by_rules & [:create, :truncate]
+        end
 
         def self.track_creation table_name, n_tuples
           # nothing to do; Greenplum tracks this operation in system tables already

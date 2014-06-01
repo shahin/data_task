@@ -143,7 +143,7 @@ module Rake
       def self.operations_supported
         {
           :by_db => operations_supported_by_db,
-          :by_app => [:truncate, :create]
+          :by_app => [:truncate, :create] - operations_supported_by_db
         }
       end
 
@@ -152,6 +152,10 @@ module Rake
       private
 
         def self.operations_supported_by_db
+          operations_supported_by_db_rules
+        end
+
+        def self.operations_supported_by_db_rules
           [:update, :insert, :delete]
         end
 
@@ -160,7 +164,7 @@ module Rake
         end
 
         def self.create_tracking_rules table_name
-          operations_supported_by_db.each do |operation|
+          operations_supported_by_db_rules.each do |operation|
             Db.execute <<-EOSQL
               create or replace rule #{self.rule_name(table_name, operation)} as 
                 on #{operation.to_s} to #{table_name} do also (
@@ -211,7 +215,7 @@ module Rake
         end
 
         def self.clear_tracking_rules_for_table table_name
-          supported_operations.each do |operation|
+          operations_support_by_db_rules.each do |operation|
             Db.execute <<-EOSQL
               drop rule #{self.rule_name(table_name, operation)} on #{table_name}
             EOSQL
