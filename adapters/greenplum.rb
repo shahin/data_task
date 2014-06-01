@@ -65,7 +65,7 @@ module Rake
             where
               relation_name = OLD.relation_name and
               relation_type = OLD.relation_type and
-              opration = OLD.operation
+              operation = OLD.operation
           ;
 
           create rule insert_operation_record as on insert to #{TABLE_TRACKER_NAME} 
