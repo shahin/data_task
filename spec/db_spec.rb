@@ -98,12 +98,12 @@ module Rake
       it "updates the tracking table on update on a tracked table" do
         with_tracking do
 
-          Db.create_table test_table, nil, '(var1 text)'
+          Db.create_table test_table, nil, '(var1 text, var2 text)'
           Db.execute <<-EOSQL
-            insert into #{test_table} values ('a')
+            insert into #{test_table} values ('a', 'a')
           EOSQL
           Db.execute <<-EOSQL
-            update #{test_table} set var1 = 'b' where var1 = 'a'
+            update #{test_table} set var2 = 'b' where var1 = 'a'
           EOSQL
 
           tracked_insert = Sql.get_single_int <<-EOSQL
