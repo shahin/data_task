@@ -11,13 +11,8 @@ module Rake
       TABLE_TRACKER_HELPER_NAME = "operations"
       @@adapters[:greenplum] = self
 
-      def self.table_tracker_columns
-        cols = super
-        cols[:relation_type][:values][:table] = 'TABLE'
-        cols
-      end
-
       def self.set_up_tracking
+        tear_down_tracking
         super
 
         Db.execute "alter table #{TABLE_TRACKER_NAME} rename to #{TABLE_TRACKER_HELPER_NAME}"
@@ -25,6 +20,27 @@ module Rake
         # Greenplum tracks CREATE and TRUNCATE operations in its pg_stat_operations system view.
         # Join this view with the tracking table so that we can track CREATE and TRUNCATE from within
         # the database instead of from application code.
+
+        Db.execute <<-EOSQL
+          create view fixed_pg_stat_operations as
+          -- GP's pg_stat_operations enum values like 'TABLE' are inconsistent so fix them here
+          select
+            pso.classname, 
+            pso.objname,
+            pso.objid,
+            pso.schemaname,
+            pso.usestatus,
+            pso.usename,
+            pso.actionname,
+            case 
+              when pso.actionname = 'TRUNCATE' then '#{relation_type_values[:table]}'
+              when pso.subtype = 'TABLE' then '#{relation_type_values[:table]}'
+              else pso.subtype
+            end as subtype,
+            pso.statime
+          from pg_stat_operations pso
+        EOSQL
+
         Db.execute <<-EOSQL
           create view #{TABLE_TRACKER_NAME} as 
           select
@@ -41,15 +57,12 @@ module Rake
 
               -- select all CREATE and TRUNCATE operations tracked by Greenplum
               select
-                pg_stat_operations.objname as relation_name,
-                case 
-                  when actionname = 'TRUNCATE' then '#{relation_type_values[:table]}'
-                  else pg_stat_operations.subtype
-                end as relation_type,
-                pg_stat_operations.actionname as operation,
-                pg_stat_operations.statime as time
-              from pg_stat_operations
-              where pg_stat_operations.actionname not in ('ANALYZE', 'VACUUM')
+                pso.objname as relation_name,
+                pso.subtype as relation_type,
+                pso.actionname as operation,
+                pso.statime as time
+              from fixed_pg_stat_operations pso
+              where pso.actionname not in ('ANALYZE', 'VACUUM')
 
               union all
 
@@ -62,7 +75,7 @@ module Rake
               from 
                 #{TABLE_TRACKER_HELPER_NAME} ttb
                 -- return only operations for tables that exist in system tables
-                join pg_stat_operations pso on (
+                join fixed_pg_stat_operations pso on (
                   ttb.relation_name = pso.objname and
                   ttb.relation_type = pso.subtype and
                   pso.actionname = 'CREATE'
@@ -100,6 +113,10 @@ module Rake
       def self.tear_down_tracking
         drop_view TABLE_TRACKER_NAME
         drop_table TABLE_TRACKER_HELPER_NAME
+      end
+
+      def self.tracking_tables?
+        view_exists?(TABLE_TRACKER_NAME)
       end
 
       def self.drop_table table_name
