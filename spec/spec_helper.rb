@@ -1,3 +1,5 @@
+require 'logger'
+
 # https://coveralls.io
 require 'coveralls'
 Coveralls.wear!
@@ -6,8 +8,13 @@ require_relative '../sql.rb'
 require_relative '../db.rb'
 require_relative '../table.rb'
 
+LOG = Logger.new(STDOUT)
+LOG.level = Logger::INFO
+
 RSpec.configure do |config|
 
+  LOG.info "Running tests with TABLETASK_ENV=#{ENV['TABLETASK_ENV']} ..."
+  
   # Use color in STDOUT
   config.color_enabled = true
 

@@ -12,17 +12,7 @@ module Rake
       @@adapters[:greenplum] = self
 
       def self.table_tracker_columns
-        # upcase all enum'd column values because GP system tables store them in upcase
-        cols = super
-        cols.each do |k1,v1|
-          cols[k1].each do |k2, v2|
-            if k2 == :values
-              cols[k1][k2].each do |k3, v3|
-                cols[k1][k2][k3] = v3.upcase
-              end
-            end
-          end
-        end
+        cols[:relation_type][:values][:table] = 'TABLE'
       end
 
       def self.set_up_tracking

@@ -5,7 +5,8 @@ module Rake
 
     describe Db do
 
-      test_table = "test"
+      test_table = "test_table"
+      test_view = "test_view"
 
       it "finds a table when it exists" do
         if !Db.table_exists?(test_table)
@@ -40,6 +41,38 @@ module Rake
           Db.create_table test_table, nil, '(var1 text)'
           Db.drop_table test_table
           expect(Db.table_exists?(test_table)).to be_false
+
+        end
+      end
+
+      it "creates a view when called to" do
+        with_tracking do
+
+          Db.create_table test_table, nil, '(var1 text)'
+          Db.create_view test_view, "select * from #{test_table}"
+          expect(Db.view_exists?(test_view)).to be_true
+
+        end
+      end
+
+      it "drops a view when called to" do
+        with_tracking do
+
+          Db.create_table test_table, nil, '(var1 text)'
+          Db.create_view test_view, "select * from #{test_table}"
+          Db.drop_view test_view
+          expect(Db.view_exists?(test_view)).to be_false
+
+        end
+      end
+
+      it "drops a view when the underlying table is dropped" do
+        with_tracking do
+
+          Db.create_table test_table, nil, '(var1 text)'
+          Db.create_view test_view, "select * from #{test_table}"
+          Db.drop_table test_table
+          expect(Db.view_exists?(test_view)).to be_false
 
         end
       end

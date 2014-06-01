@@ -9,6 +9,23 @@ module Rake
 
       @@adapters[:postgresql] = self
 
+      def self.table_tracker_columns
+        # upcase all enum'd column values because system tables store them in upcase
+        cols = super
+        cols.each do |k1,v1|
+          cols[k1].each do |k2, v2|
+            if k2 == :values
+              cols[k1][k2].each do |k3, v3|
+                cols[k1][k2][k3] = v3.upcase
+              end
+            end
+          end
+        end
+
+        cols[:relation_type][:values][:table] = 'BASE TABLE'
+        cols
+      end
+
       def self.connect
         @connection = PG::Connection.new(
           config['host'] || 'localhost',
@@ -91,22 +108,11 @@ module Rake
       end
 
       def self.table_exists? table_name, options = {}
-        options = { :schema_names => nil }.merge(options)
+        relation_exists? table_name, :table, options
+      end
 
-        if !options[:schema_names].nil?
-          schema_conditions_sql = "and table_schema in (#{options[:schema_names].to_quoted_s})"
-        else
-          schema_conditions_sql = 'true'
-        end
-
-        n_matches = Sql.get_single_int <<-EOSQL
-          select count(*)
-          from information_schema.tables 
-          where 
-            table_name = '#{table_name}' and
-            #{ schema_conditions_sql }
-        EOSQL
-        (n_matches > 0)
+      def self.view_exists? view_name, options = {}
+        relation_exists? view_name, :view, options
       end
 
       def self.create_table table_name, data_definition, column_definitions, track_table=true
@@ -209,6 +215,26 @@ module Rake
               drop rule #{self.rule_name(table_name, operation)} on #{table_name}
             EOSQL
           end
+        end
+
+        def self.relation_exists? relation_name, relation_type, options = {}
+          options = { :schema_names => nil }.merge(options)
+
+          if !options[:schema_names].nil?
+            schema_conditions_sql = "and table_schema in (#{options[:schema_names].to_quoted_s})"
+          else
+            schema_conditions_sql = 'true'
+          end
+
+          n_matches = Sql.get_single_int <<-EOSQL 
+            select count(*)
+            from information_schema.tables 
+            where 
+              table_name = '#{relation_name}' and
+              table_type = '#{relation_type_values[relation_type]}' and
+              #{ schema_conditions_sql }
+          EOSQL
+          (n_matches > 0)
         end
 
     end
