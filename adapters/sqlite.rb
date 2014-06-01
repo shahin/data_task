@@ -74,6 +74,21 @@ module Rake
 
       def self.drop_table table_name
         Db.execute "drop table if exists #{table_name}"
+
+        # manually cascade the drop operation to views for this table
+        views_for_dropped_table = Db.execute <<-EOSQL
+          select name from sqlite_master 
+          where 
+            type = 'view' and (
+              -- add trailing space for views without where statements
+              sql || ' ' like "% from #{table_name} %" or
+              sql like "% join #{table_name} %"
+            )
+        EOSQL
+        views_for_dropped_table.flatten.each do |view_name|
+          drop_view view_name
+        end
+
         return if table_name.casecmp(TABLE_TRACKER_NAME) == 0
         track_drop table_name
       end
