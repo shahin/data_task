@@ -81,7 +81,7 @@ module Rake
       end
 
       def self.tear_down_tracking
-        Db.execute "drop view #{TABLE_TRACKER_NAME} cascade"
+        drop_view TABLE_TRACKER_NAME
         drop_table TABLE_TRACKER_HELPER_NAME
       end
 
