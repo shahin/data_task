@@ -44,26 +44,37 @@ module Rake
 
             select
               a.*,
-              rank() over (partition by relation_name, relation_type order by time)
+              rank() over (partition by relation_name, relation_type order by time desc)
             from (
 
               -- select all CREATE and TRUNCATE operations tracked by Greenplum
               select
                 pg_stat_operations.objname as relation_name,
-                pg_stat_operations.subtype as relation_type,
+                case 
+                  when actionname = 'TRUNCATE' then '#{relation_type_values[:table]}'
+                  else pg_stat_operations.subtype
+                end as relation_type,
                 pg_stat_operations.actionname as operation,
                 pg_stat_operations.statime as time
               from pg_stat_operations
+              where pg_stat_operations.actionname not in ('ANALYZE', 'VACUUM')
 
               union all
 
               -- select all operations tracked by Greenplum (PostgreSQL) table rules 
               select
-                relation_name,
-                relation_type,
-                operation,
-                time
-              from #{TABLE_TRACKER_HELPER_NAME} ttb
+                ttb.relation_name,
+                ttb.relation_type,
+                ttb.operation,
+                ttb.time
+              from 
+                #{TABLE_TRACKER_HELPER_NAME} ttb
+                -- return only operations for tables that exist in system tables
+                join pg_stat_operations pso on (
+                  ttb.relation_name = pso.objname and
+                  ttb.relation_type = pso.subtype and
+                  pso.actionname = 'CREATE'
+                )
 
               ) a
             ) b 
