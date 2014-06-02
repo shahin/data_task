@@ -111,6 +111,7 @@ module Rake
       end
 
       def self.tear_down_tracking
+        drop_view "fixed_pg_stat_operations"
         drop_view TABLE_TRACKER_NAME
         drop_table TABLE_TRACKER_HELPER_NAME
       end
