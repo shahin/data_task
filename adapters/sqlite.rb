@@ -54,7 +54,8 @@ module Rake
 
       def self.table_mtime table_name
         Sql.get_single_time <<-EOSQL
-          select max(time) 
+          -- assume time is UTC (Sqlite3 default) and add offset for Ruby's Time.parse 
+          select datetime(max(time)) || ' -0000'
           from #{TABLE_TRACKER_NAME} 
           where relation_name = '#{table_name}'
         EOSQL
@@ -130,6 +131,7 @@ module Rake
           update #{TABLE_TRACKER_NAME}
           set 
             operation = '#{operation_values[:truncate]}',
+            -- Sqlite generates times at UTC and stores them without zone information
             time = datetime('now')
           where
             relation_name = '#{table_name}' and

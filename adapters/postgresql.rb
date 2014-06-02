@@ -23,6 +23,7 @@ module Rake
         end
 
         cols[:relation_type][:values][:table] = 'BASE TABLE'
+        cols[:time][:data_type] = :'timestamp with time zone'
         cols
       end
 

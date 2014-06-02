@@ -122,6 +122,7 @@ module Rake
         adapter.reset_tracking
       end
 
+      # @returns a timestamp with timezone information parseable by Ruby's Time.parse
       def self.table_mtime table_name
         assert_adapter_implementation adapter, __method__
         adapter.table_mtime(table_name)
