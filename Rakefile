@@ -21,14 +21,3 @@ end
 task :set_up_tracking do
   Rake::TableTask::Db.set_up_tracking
 end
-
-file 'pcp.txt' do |t|
-end
-
-table :precipitation => 'pcp.txt' do |t|
-  Rake::TableTask::Table.create 'precipitation', '(var1 text)'
-end
-
-table :cumulative_precipitation => :precipitation do |t|
-  Rake::TableTask::Table.create('cumulative_precipitation', '(var1 text)')
-end
