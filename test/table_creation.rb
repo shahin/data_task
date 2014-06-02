@@ -1,8 +1,8 @@
 module Rake
   module TableTask
     module TableCreation
-      OLDTABLE = "old"
-      NEWTABLE = "new"
+      OLDTABLE = "old_table"
+      NEWTABLE = "new_table"
 
       def create_timed_tables(old_table, *new_tables)
         return if (Table.exist?(old_table) &&
