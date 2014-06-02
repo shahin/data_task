@@ -33,6 +33,10 @@ module Rake
         Db.create_table table_name, data_definition, column_definitions
       end
 
+      def self.drop table_name
+        Db.drop_table table_name
+      end
+
     end
 
   end
