@@ -1,4 +1,4 @@
-require 'spec_helper'
+require_relative './helper.rb'
 
 module Rake
   module TableTask
@@ -8,28 +8,28 @@ module Rake
       context "when asked to parse a single value" do
         it "raises an error if the results array contains more than one column" do
           r = Sql.get_array('select 1,2')
-          expect{Sql.parse_single_value(r)}.to raise_error(TypeError)
+          lambda {Sql.parse_single_value(r)}.must_raise(TypeError)
         end
         it "raises an error if the results array contains more than one row" do
           r = Sql.get_array('select 1 union all select 2')
-          expect{Sql.parse_single_value(r)}.to raise_error(TypeError)
+          lambda {Sql.parse_single_value(r)}.must_raise(TypeError)
         end
         it "returns nil if the results array contains no rows" do
           r = Sql.get_array("select 1 where #{Sql.falsey_value}")
-          Sql.parse_single_value(r).should be_nil
+          Sql.parse_single_value(r).must_be_nil
         end
         it "returns nil if the results array contains a null value" do
           r = Sql.get_array('select NULL')
-          Sql.parse_single_value(r).should be_nil
+          Sql.parse_single_value(r).must_be_nil
         end
       end
 
       context "when asked for a single integer" do
         it "returns a single integer if the query result is a single value convertible to an integer" do
-          expect(Sql.get_single_int('select 1')).to be_a Integer
+          Sql.get_single_int('select 1').must_be_kind_of Integer
         end
         it "raises an error if the query results in a single non-integer" do
-          expect{Sql.get_single_int("select 'a'")}.to raise_error(ArgumentError)
+          lambda {Sql.get_single_int("select 'a'")}.must_raise(ArgumentError)
         end
       end
 

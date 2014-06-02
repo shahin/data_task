@@ -1,9 +1,15 @@
-require 'spec_helper'
+require_relative './helper.rb'
 
 module Rake
   module TableTask
 
     describe Db do
+
+      around do |test|
+        Rake::TableTask::Db.with_transaction_rollback do
+          test.call
+        end
+      end
 
       test_table = "test_table"
       test_view = "test_view"
@@ -14,7 +20,7 @@ module Rake
             create table #{test_table} (var1 text)
           EOSQL
         end
-        expect(Db.table_exists?(test_table)).to be_true
+        Db.table_exists?(test_table).must_equal true
       end
 
       it "does not find a table when it does not exist" do
@@ -23,14 +29,14 @@ module Rake
             drop table #{test_table}
           EOSQL
         end
-        expect(Db.table_exists?(test_table)).to be_false
+        Db.table_exists?(test_table).must_equal false
       end
 
       it "creates a table when called to" do
         with_tracking do
 
           Db.create_table test_table, nil, '(var1 text)'
-          expect(Db.table_exists?(test_table)).to be_true
+          Db.table_exists?(test_table).must_equal true
 
         end
       end
@@ -40,7 +46,7 @@ module Rake
 
           Db.create_table test_table, nil, '(var1 text)'
           Db.drop_table test_table
-          expect(Db.table_exists?(test_table)).to be_false
+          Db.table_exists?(test_table).must_equal false
 
         end
       end
@@ -50,7 +56,7 @@ module Rake
 
           Db.create_table test_table, nil, '(var1 text)'
           Db.create_view test_view, "select * from #{test_table}"
-          expect(Db.view_exists?(test_view)).to be_true
+          Db.view_exists?(test_view).must_equal true
 
         end
       end
@@ -61,7 +67,7 @@ module Rake
           Db.create_table test_table, nil, '(var1 text)'
           Db.create_view test_view, "select * from #{test_table}"
           Db.drop_view test_view
-          expect(Db.view_exists?(test_view)).to be_false
+          Db.view_exists?(test_view).must_equal false
 
         end
       end
@@ -72,7 +78,7 @@ module Rake
           Db.create_table test_table, nil, '(var1 text)'
           Db.create_view test_view, "select * from #{test_table}"
           Db.drop_table test_table
-          expect(Db.view_exists?(test_view)).to be_false
+          Db.view_exists?(test_view).must_equal false
 
         end
       end
@@ -88,7 +94,7 @@ module Rake
               relation_type = '#{Db.relation_type_values[:table]}' and
               operation = '#{Db.operation_values[:create]}'
           EOSQL
-          expect(tracked_create).to be_true
+          tracked_create.must_equal 1
 
         end
       end
@@ -104,7 +110,7 @@ module Rake
               relation_name = '#{test_table}' and
               relation_type = '#{Db.relation_type_values[:table]}'
           EOSQL
-          expect(still_tracking_table).to be_false
+          still_tracking_table.must_be_nil
 
         end
       end
@@ -123,7 +129,7 @@ module Rake
               relation_type = '#{Db.relation_type_values[:table]}' and
               operation = '#{Db.operation_values[:insert]}'
           EOSQL
-          expect(tracked_insert).to be_true
+          tracked_insert.must_equal 1
 
         end
       end
@@ -146,7 +152,7 @@ module Rake
               relation_type = '#{Db.relation_type_values[:table]}' and
               operation = '#{Db.operation_values[:update]}'
           EOSQL
-          expect(tracked_insert).to be_true
+          tracked_insert.must_equal 1
 
         end
       end
@@ -163,7 +169,7 @@ module Rake
               relation_type = '#{Db.relation_type_values[:table]}' and
               operation = '#{Db.operation_values[:truncate]}'
           EOSQL
-          expect(tracked_truncate).to be_true
+          tracked_truncate.must_equal 1
 
         end
       end
@@ -171,12 +177,12 @@ module Rake
       it "says it is tracking tables after tracking is set up" do
         Db.tear_down_tracking
         Db.set_up_tracking
-        expect(Db.tracking_tables?).to be_true
+        Db.tracking_tables?.must_equal true
       end
 
       it "says it is not tracking tables after tracking is torn down" do
         Db.tear_down_tracking
-        expect(Db.tracking_tables?).to be_false
+        (Db.tracking_tables?).must_equal false
       end
 
     end

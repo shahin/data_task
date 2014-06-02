@@ -6,5 +6,6 @@ gem 'rake', '10.0.4'
 gem 'pg', '0.17.1', :require => false
 gem 'sqlite3', :require => false
 
-gem 'rspec', '2.14.1', :require => false, :group => :test
+gem 'minitest-around', '0.2', :require => false, :group => :test
+gem 'minitest-spec-context', '0.0.3', :require => false, :group => :test
 gem 'coveralls', require: false, :group => :test

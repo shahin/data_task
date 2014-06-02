@@ -1,10 +1,14 @@
+require 'rake/testtask'
 require_relative './db.rb'
 require_relative './table_task.rb'
 
-require 'rspec/core/rake_task'
+task :default => :test
 
-RSpec::Core::RakeTask.new(:spec)
-task :default => :spec
+Rake::TestTask.new do |t|
+  t.libs << "spec"
+  t.test_files = FileList['spec/**/*_spec.rb', 'spec/test_*.rb']
+  t.verbose
+end
 
 task :reset_tracking do
   Rake::TableTask::Db.reset_tracking

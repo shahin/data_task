@@ -1,4 +1,4 @@
-require 'spec_helper'
+require_relative './helper.rb'
 
 module Rake
   module TableTask
@@ -17,7 +17,7 @@ module Rake
       it "has a modified time after creation" do
         with_tracking do
           t = Table.new test_table_name, nil, "(var1 integer)"
-          expect(t.mtime).to be > Time.new(0)
+          t.mtime.must_be :>, Time.new(0)
         end
       end
 
@@ -27,7 +27,7 @@ module Rake
           operation = lambda do
             Db.execute "insert into #{test_table_name} values (1)"
           end
-          expect(mtime_updated?(t, operation)).to be_true
+          mtime_updated?(t, operation).must_equal true
         end
       end
 
@@ -38,7 +38,7 @@ module Rake
           operation = lambda do 
             Db.execute "update #{test_table_name} set var2 = 2 where var1 = 1"
           end
-          expect(mtime_updated?(t, operation)).to be_true
+          mtime_updated?(t, operation).must_equal true
         end
       end
 
@@ -49,7 +49,7 @@ module Rake
           operation = lambda do
             Db.execute "delete from #{test_table_name}"
           end
-          expect(mtime_updated?(t, operation)).to be_true
+          mtime_updated?(t, operation).must_equal true
         end
       end
 
@@ -60,7 +60,7 @@ module Rake
           operation = lambda do
             Db.truncate_table test_table_name
           end
-          expect(mtime_updated?(t, operation)).to be_true
+          mtime_updated?(t, operation).must_equal true
         end
       end
 
