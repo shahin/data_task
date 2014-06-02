@@ -15,8 +15,8 @@ module Rake
         self.class.mtime(@name)
       end
 
-      def self.exists? table_name, schema_names = ['public']
-        Db.table_exists?(table_name, schema_names)
+      def self.exists? table_name, options={}
+        Db.table_exists?(table_name, options)
       end
 
       self.singleton_class.send(:alias_method, :exist?, :exists?)
