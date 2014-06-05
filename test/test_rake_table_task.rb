@@ -102,8 +102,8 @@ module Rake
         with_tracking do
           @ran = false
 
-          create_file(OLDTABLE)
-          delete_file(NEWTABLE)
+          create_table(OLDTABLE)
+          drop_table(NEWTABLE)
           table NEWTABLE do
             @ran = true
           end
@@ -113,6 +113,86 @@ module Rake
           Task[OLDTABLE].invoke
 
           assert @ran
+        end
+      end
+
+      def test_table_depends_on_new_file
+        with_tracking do
+          create_timed_tables(OLDTABLE, NEWTABLE)
+          sleep(0.1)
+
+          file NEWFILE do
+            create_file(NEWFILE)
+          end
+          Task[NEWFILE].invoke
+
+          @ran = false
+          table NEWTABLE => NEWFILE do
+            @ran = true
+          end
+
+          Task[NEWTABLE].invoke
+          assert @ran, "Should have run the table task with an updated file dependency."
+        end
+      end
+
+      def test_table_depends_on_new_file
+        with_tracking do
+          file NEWFILE do
+            create_file(NEWFILE)
+          end
+          Task[NEWFILE].invoke
+
+          sleep(0.1)
+          create_timed_tables(OLDTABLE, NEWTABLE)
+
+          @ran = false
+          table NEWTABLE => NEWFILE do
+            @ran = true
+          end
+
+          Task[NEWTABLE].invoke
+          assert !@ran, "Should not have run the table task with an old file dependency."
+        end
+      end
+
+      def test_file_depends_on_new_table
+        with_tracking do
+          create_file(NEWFILE)
+          sleep(0.1)
+
+          table NEWTABLE do
+            create_timed_tables(OLDTABLE, NEWTABLE)
+          end
+          Task[NEWTABLE].invoke
+
+          @ran = false
+          file NEWFILE => NEWTABLE do
+            @ran = true
+          end
+
+          Task[NEWFILE].invoke
+          assert @ran, "Should have run the file task with an updated table dependency."
+        end
+      end
+
+      def test_file_depends_on_old_table
+        with_tracking do
+          table NEWTABLE do
+            create_timed_tables(OLDTABLE, NEWTABLE)
+          end
+          Task[NEWTABLE].invoke
+
+          sleep(0.1)
+          create_file(NEWFILE)
+
+          @ran = false
+          file NEWFILE => NEWTABLE do
+            @ran = true
+          end
+
+          Task[NEWFILE].invoke
+          assert !@ran, "Should not have run the file task with an old table dependency."
         end
       end
 
