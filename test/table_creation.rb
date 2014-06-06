@@ -9,7 +9,7 @@ module Rake
           new_tables.all? { |new_table|
             Table.exist?(new_table) && Table.mtime(new_table) > Table.mtime(old_table)
           })
-        now = Time.now
+        now = DateTime.now
 
         create_table(old_table)
         sleep(1.0)

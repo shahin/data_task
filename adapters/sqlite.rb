@@ -33,7 +33,7 @@ module Rake
       def self.table_tracker_columns
         # replace the default datatype for time with SQLite's timestamp
         super.merge({
-          :time => {:data_type => :timestamp}
+          :time => {:data_type => :varchar}
         })
       end
 
@@ -56,7 +56,7 @@ module Rake
       def self.table_mtime table_name
         Sql.get_single_time <<-EOSQL
           -- assume time is UTC (Sqlite3 default) and add offset for Ruby's Time.parse 
-          select datetime(max(time)) || ' -0000'
+          select strftime('%Y-%m-%d %H:%M:%f',max(time)) || ' -0000'
           from #{TABLE_TRACKER_NAME} 
           where relation_name = '#{table_name}'
         EOSQL
@@ -133,7 +133,8 @@ module Rake
           set 
             operation = '#{operation_values[:truncate]}',
             -- Sqlite generates times at UTC and stores them without zone information
-            time = datetime('now')
+            -- here we store time as a real for safe ordering and millisecond precision
+            time = julianday('now')
           where
             relation_name = '#{table_name}' and
             relation_type = '#{relation_type_values[:table]}'
@@ -168,7 +169,7 @@ module Rake
                   update #{TABLE_TRACKER_NAME} 
                   set 
                     operation = '#{operation_values[operation]}',
-                    time = datetime()
+                    time = julianday('now')
                   where 
                     relation_name = '#{table_name}' and 
                     relation_type = '#{relation_type_values[:table]}'
@@ -193,7 +194,7 @@ module Rake
               '#{table_name}', 
               '#{relation_type_values[:table]}', 
               '#{operation_values[operation]}', 
-              datetime('now')
+              julianday('now')
             );
           EOSQL
         end

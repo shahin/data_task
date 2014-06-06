@@ -9,7 +9,7 @@ module Rake
 
       def mtime_updated? table, operation
         original_mtime = table.mtime
-        sleep(1)
+        sleep(0.1)
         operation.call
         table.mtime > original_mtime
       end
@@ -17,7 +17,7 @@ module Rake
       it "has a modified time after creation" do
         with_tracking do
           t = Table.new test_table_name, nil, "(var1 integer)"
-          t.mtime.must_be :>, Time.new(0)
+          t.mtime.must_be :>, DateTime.new(0)
         end
       end
 

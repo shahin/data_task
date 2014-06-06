@@ -48,11 +48,11 @@ module Rake
       # Get a single time via SQL.
       #
       # @param sql [String] the SQL to produce the time string with timezone info
-      # @returns [Time] the time produced by the SQL, converted to Ruby's local time
+      # @returns [DateTime] the time produced by the SQL, converted to Ruby's local time
       def self.get_single_time sql
         r = get_array(sql)
         parse_single_value r do
-          Time.parse(r.first.first)
+          DateTime.parse(r.first.first)
         end
       end
 
