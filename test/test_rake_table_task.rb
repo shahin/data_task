@@ -119,7 +119,7 @@ module Rake
       def test_table_depends_on_new_file
         with_tracking do
           create_timed_tables(OLDTABLE, NEWTABLE)
-          sleep(0.1)
+          sleep(1)
 
           file NEWFILE do
             create_file(NEWFILE)
@@ -143,7 +143,7 @@ module Rake
           end
           Task[NEWFILE].invoke
 
-          sleep(0.1)
+          sleep(1)
           create_timed_tables(OLDTABLE, NEWTABLE)
 
           @ran = false
@@ -159,7 +159,7 @@ module Rake
       def test_file_depends_on_new_table
         with_tracking do
           create_file(NEWFILE)
-          sleep(0.1)
+          sleep(1)
 
           table NEWTABLE do
             create_timed_tables(OLDTABLE, NEWTABLE)
@@ -183,7 +183,7 @@ module Rake
           end
           Task[NEWTABLE].invoke
 
-          sleep(0.1)
+          sleep(1)
           create_file(NEWFILE)
 
           @ran = false
