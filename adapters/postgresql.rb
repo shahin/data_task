@@ -80,12 +80,17 @@ module Rake
         truncate_table TABLE_TRACKER_NAME
       end
 
-      def self.table_mtime table_name
-        Sql.get_single_time <<-EOSQL
-          select max(time) 
-          from #{TABLE_TRACKER_NAME} 
-          where relation_name = '#{table_name}'
-        EOSQL
+      def self.table_mtime qualified_table_name
+        schema_name, table_name = parse_schema_and_table_name(qualified_table_name)
+        schema_name = first_schema_for(table_name) if schema_name.nil?
+
+        with_search_path(schema_name) do
+          Sql.get_single_time <<-EOSQL
+            select max(time)
+            from #{schema_name}.#{TABLE_TRACKER_NAME}
+            where relation_name = '#{table_name}'
+          EOSQL
+        end
       end
 
       def self.truncate_table table_name
@@ -160,11 +165,79 @@ module Rake
           [:update, :insert, :delete]
         end
 
+        # Split a table name qualified with a schema name into separate strings for schema and 
+        # table names.
+        #
+        # @returns [String, String] the schema name and table name, separately, for table_name. If
+        # table_name is unqualified with the schema name, return [nil, table_name].
+        def self.parse_schema_and_table_name table_name
+          return [nil, table_name] if table_name.count('.') == 0
+
+          if table_name.count('.') > 1
+            raise "Invalid relation reference #{table_name} (only one '.' is allowed)"
+          end
+
+          schema_name, table_name = table_name.split('.')
+          [schema_name, table_name]
+        end
+
+        # @returns [Array] the ordered schema names in the search path as strings
+        def self.search_path
+          current_search_path = Db.execute("show search_path").first.first.split(',')
+          username = current_user
+
+          # the default search path begins with a symbolic reference to the current username
+          # if that reference is in the search path, replace it with the resolved current username
+          if current_search_path.first == '"$user"'
+            user_schema_exists = Db.execute <<-EOSQL
+              select true
+              from information_schema.schemata 
+              where schema_name = '#{username}'
+            EOSQL
+
+            if user_schema_exists.first.first == 't'
+              current_search_path = current_search_path[1..-1]
+            else
+              current_search_path = [username] + current_search_path[1..-1]
+            end
+          end
+
+          current_search_path
+        end
+
+        # @returns [String] the name of the current database user
+        def self.current_user
+          Db.execute("select current_user").first.first
+        end
+
+        # @returns [String] the name of the first schema in the search path containing table_name
+        def self.first_schema_for table_name
+          search_path_when_stmts = search_path.each_with_index do |s,i| 
+            "when search_path = '#{s}' then #{i.to_s}"
+          end
+          Db.execute <<-EOSQL
+            select table_schema
+            from (
+              select 
+                table_schema, 
+                table_name,
+                case 
+                  #{search_path_when_stmts} 
+                  else 'NaN'::integer 
+                end as search_order
+              from information_schema.tables
+              )
+            where search_order = 1
+          EOSQL
+        end
+
         def self.rule_name table_name, operation
           "#{table_name}_#{operation.to_s}"
         end
 
         def self.create_tracking_rules table_name
+          schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+
           operations_supported_by_db_rules.each do |operation|
             Db.execute <<-EOSQL
               create or replace rule #{self.rule_name(table_name, operation)} as 
@@ -233,6 +306,13 @@ module Rake
               #{ schema_conditions_sql }
           EOSQL
           (n_matches > 0)
+        end
+
+        def self.with_search_path schemas
+          original_search_path = search_path
+          Db.exec "set search_path to #{Array.ensure(schemas).join(',')}"
+          yield
+          Db.exec "set search_path to #{original_search_path.join(',')}"
         end
 
     end
