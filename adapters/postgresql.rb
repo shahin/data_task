@@ -51,8 +51,15 @@ module Rake
         begin
           r = @connection.exec sql
           r.values
+        rescue PG::UndefinedTable => e
+          if /ERROR:  relation "(last_operations|.*\.last_operations)" does not exist/ =~ e.message
+            LOG.error "Tracking is not set up in this schema. Set up tracking in this schema first."
+          end
+          execute "rollback;"
+          raise e
         rescue PGError => e
           LOG.info e.message.chomp
+          execute "rollback;"
           raise e
         end
       end
@@ -106,12 +113,17 @@ module Rake
       end
 
       def self.track_drop table_name
-        Db.execute <<-EOSQL
-          delete from #{TABLE_TRACKER_NAME} 
-          where 
-            relation_name = '#{table_name}' and 
-            relation_type = '#{relation_type_values[:table]}'
-        EOSQL
+        schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+        table_tracker_name = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
+
+        if table_exists?(table_tracker_name)
+          Db.execute <<-EOSQL
+            delete from #{table_tracker_name}
+            where
+              relation_name = '#{unqualified_table_name}' and 
+              relation_type = '#{relation_type_values[:table]}'
+          EOSQL
+        end
       end
 
       def self.table_exists? table_name, options = {}
@@ -183,7 +195,7 @@ module Rake
 
         # @returns [Array] the ordered schema names in the search path as strings
         def self.search_path
-          current_search_path = Db.execute("show search_path").first.first.split(',')
+          current_search_path = Db.execute("show search_path").first.first.split(',').map { |s| s.strip }
           username = current_user
 
           # the default search path begins with a symbolic reference to the current username
@@ -195,14 +207,14 @@ module Rake
               where schema_name = '#{username}'
             EOSQL
 
-            if user_schema_exists.first.first == 't'
+            if !user_schema_exists.first.nil? && user_schema_exists.first.first == 't'
               current_search_path = current_search_path[1..-1]
             else
               current_search_path = [username] + current_search_path[1..-1]
             end
           end
 
-          current_search_path
+          current_search_path.map(&:downcase)
         end
 
         # @returns [String] the name of the current database user
@@ -212,23 +224,25 @@ module Rake
 
         # @returns [String] the name of the first schema in the search path containing table_name
         def self.first_schema_for table_name
-          search_path_when_stmts = search_path.each_with_index do |s,i| 
-            "when search_path = '#{s}' then #{i.to_s}"
+          search_path_when_stmts = []
+          search_path.each_with_index do |s,i| 
+            search_path_when_stmts << "when table_schema = '#{s}' then #{i.to_s}"
           end
-          Db.execute <<-EOSQL
+          schema_name = Db.execute <<-EOSQL
             select table_schema
             from (
               select 
                 table_schema, 
                 table_name,
                 case 
-                  #{search_path_when_stmts} 
-                  else 'NaN'::integer 
+                  #{search_path_when_stmts.join(' ')}
+                  else 'NaN'::float 
                 end as search_order
               from information_schema.tables
-              )
+              ) a
             where search_order = 1
           EOSQL
+          schema_name.first.first
         end
 
         def self.rule_name table_name, operation
@@ -237,21 +251,22 @@ module Rake
 
         def self.create_tracking_rules table_name
           schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+          qualified_table_tracker = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
 
           operations_supported_by_db_rules.each do |operation|
             Db.execute <<-EOSQL
-              create or replace rule #{self.rule_name(table_name, operation)} as 
+              create or replace rule "#{self.rule_name(table_name, operation)}" as
                 on #{operation.to_s} to #{table_name} do also (
 
-                  delete from #{TABLE_TRACKER_NAME} where 
-                    relation_name = '#{table_name}' and 
+                  delete from #{qualified_table_tracker} where
+                    relation_name = '#{unqualified_table_name}' and
                     relation_type = '#{relation_type_values[:table]}'
                     ;
 
-                  insert into #{TABLE_TRACKER_NAME} values (
-                    '#{table_name}', 
-                    '#{relation_type_values[:table]}', 
-                    '#{operation_values[operation]}', 
+                  insert into #{qualified_table_tracker} values (
+                    '#{unqualified_table_name}',
+                    '#{relation_type_values[:table]}',
+                    '#{operation_values[operation]}',
                     clock_timestamp()
                   );
 
@@ -261,14 +276,17 @@ module Rake
         end
 
         def self.track_creation table_name, n_tuples
+          schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+          qualified_table_tracker = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
+
           operation = :create
           Db.execute <<-EOSQL
-            delete from #{TABLE_TRACKER_NAME} where
-              relation_name = '#{table_name}' and
+            delete from #{qualified_table_tracker} where
+              relation_name = '#{unqualified_table_name}' and
               relation_type = '#{relation_type_values[:table]}'
               ;
-            insert into #{TABLE_TRACKER_NAME} values (
-              '#{table_name}',
+            insert into #{qualified_table_tracker} values (
+              '#{unqualified_table_name}',
               '#{relation_type_values[:table]}',
               '#{operation_values[operation]}',
               clock_timestamp()
@@ -277,31 +295,34 @@ module Rake
         end
 
         def self.track_truncate table_name
+          schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+          qualified_table_tracker = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
+
           Db.execute <<-EOSQL
-            update #{TABLE_TRACKER_NAME}
+            update #{qualified_table_tracker}
             set 
               operation = '#{operation_values[:truncate]}',
               time = clock_timestamp()
             where
-              relation_name = '#{table_name}' and
+              relation_name = '#{unqualified_table_name}' and
               relation_type = '#{relation_type_values[:table]}'
           EOSQL
         end
 
         def self.relation_exists? relation_name, relation_type, options = {}
-          options = { :schema_names => nil }.merge(options)
+          schema_name, unqualified_relation_name = parse_schema_and_table_name(relation_name)
 
-          if !options[:schema_names].nil?
-            schema_conditions_sql = "and table_schema in (#{options[:schema_names].to_quoted_s})"
+          if !schema_name.nil?
+            schema_conditions_sql = "table_schema ilike '#{schema_name}'"
           else
-            schema_conditions_sql = 'true'
+            schema_conditions_sql = "table_schema in (#{search_path.to_quoted_s})"
           end
 
           n_matches = Sql.get_single_int <<-EOSQL 
             select count(*)
             from information_schema.tables 
             where 
-              table_name = '#{relation_name}' and
+              table_name = '#{unqualified_relation_name}' and
               table_type = '#{relation_type_values[relation_type]}' and
               #{ schema_conditions_sql }
           EOSQL
@@ -310,9 +331,18 @@ module Rake
 
         def self.with_search_path schemas
           original_search_path = search_path
-          Db.exec "set search_path to #{Array.ensure(schemas).join(',')}"
-          yield
-          Db.exec "set search_path to #{original_search_path.join(',')}"
+          Db.execute "set search_path to #{Array(schemas).join(',')}"
+          r = yield
+          Db.execute "set search_path to #{original_search_path.join(',')}"
+          r
+        end
+
+        def self.with_role role
+          original_role = current_user
+          Db.execute "set role #{role}"
+          r = yield
+          Db.execute "set role #{original_role}"
+          r
         end
 
     end
