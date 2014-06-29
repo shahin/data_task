@@ -19,6 +19,11 @@ module Rake
       test_view_wrong_schema = "#{wrong_schema}.#{test_view}"
 
       around do |test|
+        current_adapter = Rake::TableTask::Db.adapter
+        if current_adapter != Rake::TableTask::PostgreSQL
+          skip("Using adapter #{current_adapter}, so skipping #{self.class} tests.")
+        end
+
         Rake::TableTask::Db.with_transaction_rollback do
           Db.execute "create schema #{right_schema}"
           Db.execute "create schema #{wrong_schema}"
