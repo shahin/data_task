@@ -202,12 +202,12 @@ module Rake
           # if that reference is in the search path, replace it with the resolved current username
           if current_search_path.first == '"$user"'
             user_schema_exists = Db.execute <<-EOSQL
-              select true
+              select 1
               from information_schema.schemata 
               where schema_name = '#{username}'
             EOSQL
 
-            if !user_schema_exists.first.nil? && user_schema_exists.first.first == 't'
+            if user_schema_exists.nil? || user_schema_exists.first.nil?
               current_search_path = current_search_path[1..-1]
             else
               current_search_path = [username] + current_search_path[1..-1]
@@ -224,12 +224,18 @@ module Rake
 
         # @returns [String] the name of the first schema in the search path containing table_name
         def self.first_schema_for table_name
+          return if !table_exists?(table_name)
+          schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+
           search_path_when_stmts = []
           search_path.each_with_index do |s,i| 
-            search_path_when_stmts << "when table_schema = '#{s}' then #{i.to_s}"
+            search_path_when_stmts << "when table_schema = '#{s}' then #{(i+1).to_s}"
           end
+
           schema_name = Db.execute <<-EOSQL
-            select table_schema
+            select 
+              table_schema,
+              search_order
             from (
               select 
                 table_schema, 
@@ -239,8 +245,10 @@ module Rake
                   else 'NaN'::float 
                 end as search_order
               from information_schema.tables
+              where table_name ilike '#{unqualified_table_name}'
               ) a
-            where search_order = 1
+            order by search_order
+            limit 1
           EOSQL
           schema_name.first.first
         end
