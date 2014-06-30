@@ -1,11 +1,11 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'tabletask/version'
+require 'table_task/version'
 
 Gem::Specification.new do |spec|
   spec.name          = "tabletask"
-  spec.version       = Tabletask::VERSION
+  spec.version       = Rake::TableTask::VERSION
   spec.authors       = ["Shahin Saneinejad"]
   spec.email         = ["shahin.saneinejad@gmail.com"]
   spec.summary       = %q{TODO: Write a short summary. Required.}

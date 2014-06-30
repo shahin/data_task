@@ -1,4 +1,5 @@
 require 'rake/testtask'
+require 'bundler/gem_tasks'
 require_relative './lib/db.rb'
 require_relative './lib/table_task.rb'
 
@@ -10,14 +11,17 @@ end
 
 task :default => :test
 
+desc "Clear tracking history."
 task :reset_tracking do
   Rake::TableTask::Db.reset_tracking
 end
 
+desc "Drop tracking relations."
 task :tear_down_tracking do
   Rake::TableTask::Db.tear_down_tracking
 end
 
+desc "Set up tracking relations."
 task :set_up_tracking do
   Rake::TableTask::Db.set_up_tracking
 end
