@@ -1,6 +1,6 @@
 require 'rake/testtask'
-require_relative './db.rb'
-require_relative './table_task.rb'
+require_relative './lib/db.rb'
+require_relative './lib/table_task.rb'
 
 Rake::TestTask.new do |t|
   t.libs << "spec"
