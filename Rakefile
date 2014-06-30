@@ -1,7 +1,7 @@
 require 'rake/testtask'
 require 'bundler/gem_tasks'
-require_relative './lib/db.rb'
-require_relative './lib/table_task.rb'
+require 'db'
+require 'table_task'
 
 Rake::TestTask.new do |t|
   t.libs << "spec"
