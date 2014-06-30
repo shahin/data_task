@@ -1,6 +1,6 @@
 require 'rake/testtask'
 require 'bundler/gem_tasks'
-require 'db'
+require 'table_task/db'
 require 'table_task'
 
 Rake::TestTask.new do |t|
