@@ -48,19 +48,26 @@ module Rake
 
       def self.execute sql
         connect if @connection.nil?
+
         begin
+
           r = @connection.exec sql
           r.values
+
         rescue PG::UndefinedTable => e
+
           if /ERROR:  relation "(last_operations|.*\.last_operations)" does not exist/ =~ e.message
             LOG.error "Tracking is not set up in this schema. Set up tracking in this schema first."
           end
           execute "rollback;"
           raise e
+
         rescue PGError => e
+
           LOG.info e.message.chomp
           execute "rollback;"
           raise e
+
         end
       end
 
@@ -71,20 +78,32 @@ module Rake
         table_exists?(TABLE_TRACKER_NAME)
       end
 
-      def self.set_up_tracking
-        tear_down_tracking
-        column_definitions = table_tracker_columns.map do |col,col_defn|
-          col.to_s + ' ' + col_defn[:data_type].to_s
-        end.join(', ')
-        create_table TABLE_TRACKER_NAME, nil, " (#{column_definitions})", false
+      def self.set_up_tracking options
+        tear_down_tracking options
+
+        target_search_path = options[:search_path] || search_path.join(',')
+        with_search_path(target_search_path) do
+
+          column_definitions = table_tracker_columns.map do |col, col_defn|
+            col.to_s + ' ' + col_defn[:data_type].to_s
+          end.join(', ')
+          create_table TABLE_TRACKER_NAME, nil, " (#{column_definitions})", false
+
+        end
       end
 
-      def self.tear_down_tracking
-        drop_table TABLE_TRACKER_NAME
+      def self.tear_down_tracking options
+        target_search_path = options[:search_path] || search_path.join(',')
+        with_search_path(target_search_path) do
+          drop_table TABLE_TRACKER_NAME
+        end
       end
-      
-      def self.reset_tracking
-        truncate_table TABLE_TRACKER_NAME
+
+      def self.reset_tracking options
+        target_search_path = options[:search_path] || search_path.join(',')
+        with_search_path(target_search_path) do
+          truncate_table TABLE_TRACKER_NAME
+        end
       end
 
       def self.table_mtime qualified_table_name

@@ -10,14 +10,17 @@ end
 
 task :default => :test
 
-task :reset_tracking do
-  Rake::TableTask::Db.reset_tracking
+task :reset_tracking, [:search_path] do |t, args|
+  args.with_defaults(:search_path => nil)
+  Rake::TableTask::Db.reset_tracking args
 end
 
-task :tear_down_tracking do
-  Rake::TableTask::Db.tear_down_tracking
+task :tear_down_tracking, [:search_path] do |t, args|
+  args.with_defaults(:search_path => nil)
+  Rake::TableTask::Db.tear_down_tracking args
 end
 
-task :set_up_tracking do
-  Rake::TableTask::Db.set_up_tracking
+task :set_up_tracking, [:search_path] do |t, args|
+  args.with_defaults(:search_path => nil)
+  Rake::TableTask::Db.set_up_tracking args
 end

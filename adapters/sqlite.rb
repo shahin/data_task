@@ -37,7 +37,7 @@ module Rake
         })
       end
 
-      def self.set_up_tracking
+      def self.set_up_tracking options
         tear_down_tracking
         column_definitions = table_tracker_columns.map do |col,col_defn|
           col.to_s + ' ' + col_defn[:data_type].to_s
@@ -45,11 +45,11 @@ module Rake
         create_table TABLE_TRACKER_NAME, nil, " (#{column_definitions})", false
       end
 
-      def self.tear_down_tracking
+      def self.tear_down_tracking options
         drop_table TABLE_TRACKER_NAME
       end
       
-      def self.reset_tracking
+      def self.reset_tracking options
         truncate_table TABLE_TRACKER_NAME
       end
 

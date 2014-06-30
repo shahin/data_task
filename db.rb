@@ -107,19 +107,19 @@ module Rake
         adapter.tracking_tables?
       end
 
-      def self.set_up_tracking
+      def self.set_up_tracking options
         assert_adapter_implementation adapter, __method__
-        adapter.set_up_tracking
+        adapter.set_up_tracking options
       end
 
-      def self.tear_down_tracking
+      def self.tear_down_tracking options
         assert_adapter_implementation adapter, __method__
-        adapter.tear_down_tracking
+        adapter.tear_down_tracking options
       end
       
-      def self.reset_tracking
+      def self.reset_tracking options
         assert_adapter_implementation adapter, __method__
-        adapter.reset_tracking
+        adapter.reset_tracking options
       end
 
       # @returns a timestamp with timezone information parseable by Ruby's Time.parse
