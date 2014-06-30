@@ -107,17 +107,17 @@ module Rake
         adapter.tracking_tables?
       end
 
-      def self.set_up_tracking options
+      def self.set_up_tracking options={}
         assert_adapter_implementation adapter, __method__
         adapter.set_up_tracking options
       end
 
-      def self.tear_down_tracking options
+      def self.tear_down_tracking options={}
         assert_adapter_implementation adapter, __method__
         adapter.tear_down_tracking options
       end
       
-      def self.reset_tracking options
+      def self.reset_tracking options={}
         assert_adapter_implementation adapter, __method__
         adapter.reset_tracking options
       end

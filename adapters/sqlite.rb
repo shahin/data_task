@@ -38,7 +38,7 @@ module Rake
       end
 
       def self.set_up_tracking options
-        tear_down_tracking
+        tear_down_tracking options
         column_definitions = table_tracker_columns.map do |col,col_defn|
           col.to_s + ' ' + col_defn[:data_type].to_s
         end.join(', ')
