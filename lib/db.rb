@@ -36,7 +36,7 @@ module Rake
       }
 
       @@adapters = Hash.new
-      @@config_path = File.join(File.dirname(__FILE__), 'config/database.yml')
+      @@config_path = File.join(File.dirname(__FILE__), '../config/database.yml')
       @@config = nil
 
       @connection = nil

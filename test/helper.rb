@@ -8,10 +8,10 @@ require 'minitest-spec-context'
 
 require 'logger'
 
-require_relative '../sql.rb'
-require_relative '../db.rb'
-require_relative '../table.rb'
-require_relative '../table_task.rb'
+require_relative '../lib/sql.rb'
+require_relative '../lib/db.rb'
+require_relative '../lib/table.rb'
+require_relative '../lib/table_task.rb'
 
 def with_tracking &ops
   Rake::TableTask::Db.set_up_tracking
