@@ -1,7 +1,5 @@
-require 'rubygems'
-require 'bundler/setup'
-
-require_relative './table.rb'
+require 'table_task/version'
+require 'table_task/table'
 
 module Rake
   # #########################################################################
