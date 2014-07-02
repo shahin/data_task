@@ -80,11 +80,11 @@ module Rake
 
       def table_mtime table_name
         Sql.get_single_time(
-        execute <<-EOSQL
-          select max(time) 
-          from #{TABLE_TRACKER_NAME} 
-          where relation_name = '#{table_name}'
-        EOSQL
+          execute <<-EOSQL
+            select max(time) 
+            from #{TABLE_TRACKER_NAME} 
+            where relation_name = '#{table_name}'
+          EOSQL
         )
       end
 
@@ -225,14 +225,14 @@ module Rake
           end
 
           n_matches = Sql.get_single_int(
-          execute <<-EOSQL 
-            select count(*)
-            from information_schema.tables 
-            where 
-              table_name = '#{relation_name}' and
-              table_type = '#{relation_type_values[relation_type]}' and
-              #{ schema_conditions_sql }
-          EOSQL
+            execute <<-EOSQL 
+              select count(*)
+              from information_schema.tables 
+              where 
+                table_name = '#{relation_name}' and
+                table_type = '#{relation_type_values[relation_type]}' and
+                #{ schema_conditions_sql }
+            EOSQL
           )
           (n_matches > 0)
         end
