@@ -12,16 +12,21 @@ module Rake
 
     class TableTask < Task
 
+      def define_task(table, *args, &block)
+        @table = table
+        super([table.name] + args, &block)
+      end
+
       # Is this table task needed? Yes if it doesn't exist, or if its time stamp
       # is out of date.
       def needed?
-        !Table.exist?(name) || out_of_date?(timestamp)
+        !@table.exist? || out_of_date?(timestamp)
       end
 
       # Time stamp for table task.
       def timestamp
-        if Table.exist?(name)
-          mtime = Table.mtime(name.to_s)
+        if @table.exist?(name)
+          mtime = @table.mtime(name.to_s)
           raise "Table #{name} exists but modified time is unavailable." if mtime.nil?
           mtime
         else
@@ -53,5 +58,6 @@ module Rake
 end
 
 def table(*args, &block)
-  Rake::TableTask::TableTask.define_task(*args, &block)
+  table = args.shift
+  Rake::TableTask::TableTask.define_task(table, *args, &block)
 end

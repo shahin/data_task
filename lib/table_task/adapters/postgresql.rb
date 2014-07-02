@@ -1,6 +1,7 @@
 require 'pg'
-require_relative 'support/transactions.rb'
-require_relative 'support/booleans.rb'
+require_relative 'support/transactions'
+require_relative 'support/booleans'
+require 'table_task/table'
 
 module Rake
   module TableTask
@@ -24,6 +25,10 @@ module Rake
             LOG.info('psql') { msg.gsub(/\n/,'; ') }
           end
         end
+      end
+
+      def [](name)
+        Table.new(name, self)
       end
 
       def table_tracker_columns
