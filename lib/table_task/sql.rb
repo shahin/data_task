@@ -38,7 +38,8 @@ module Rake
       # @returns [Time] the single result converted to Ruby's local time
       def self.get_single_time r
         parse_single_value r do
-          Time.parse(r.first.first)
+          t = Time.parse(r.first.first)
+          DateTime.parse(t.to_s)
         end
       end
 
