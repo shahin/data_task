@@ -6,6 +6,9 @@ module Rake
     # Represents a table accessed via a database, roughly analogous to the File class.
     class Table
 
+      attr_accessor :name
+      attr_accessor :adapter
+
       def initialize table_name, adapter
         @name = table_name
         @adapter = adapter
@@ -19,6 +22,10 @@ module Rake
 
       def mtime
         @adapter.table_mtime(@name)
+      end
+
+      def to_s
+        @name
       end
 
     end
