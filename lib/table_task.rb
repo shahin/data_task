@@ -69,6 +69,7 @@ def table(*args, &block)
   args_to_resolve = args.clone
   task_name, arg_names, deps = Rake.application.resolve_args(args_to_resolve)
 
+  # we probably got a Table object as the task name, but Rake needs tasks named by Strings
   if args.first.is_a?(Hash)
     # have no task arguments, so the task name keys the prerequisites
     args[0] = { task_name.to_s => args[0][task_name] }
