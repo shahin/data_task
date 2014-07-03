@@ -13,6 +13,8 @@ module Rake
 
       TABLE_TRACKER_NAME = 'last_operations'
 
+      # enumerate case-sensitive, DBMS-specific values that we store in tracking tables
+      # this can be overridden in child classes for specific databases
       TABLE_TRACKER_COLUMNS = { 
         :relation_name => { :data_type => :text },
         :relation_type => {
