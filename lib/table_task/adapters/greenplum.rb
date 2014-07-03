@@ -9,19 +9,18 @@ module Rake
     class Greenplum < PostgreSQL
 
       TABLE_TRACKER_HELPER_NAME = "operations"
-      @@adapters[:greenplum] = self
 
-      def self.set_up_tracking
+      def set_up_tracking
         tear_down_tracking
         super
 
-        Db.execute "alter table #{TABLE_TRACKER_NAME} rename to #{TABLE_TRACKER_HELPER_NAME}"
+        execute "alter table #{TABLE_TRACKER_NAME} rename to #{TABLE_TRACKER_HELPER_NAME}"
 
         # Greenplum tracks CREATE and TRUNCATE operations in its pg_stat_operations system view.
         # Join this view with the tracking table so that we can track CREATE and TRUNCATE from within
         # the database instead of from application code.
 
-        Db.execute <<-EOSQL
+        execute <<-EOSQL
           create view fixed_pg_stat_operations as
           -- GP's pg_stat_operations enum values like 'TABLE' are inconsistent so fix them here
           select
@@ -41,7 +40,7 @@ module Rake
           from pg_stat_operations pso
         EOSQL
 
-        Db.execute <<-EOSQL
+        execute <<-EOSQL
           create view #{TABLE_TRACKER_NAME} as 
           select
             relation_name,
@@ -88,7 +87,7 @@ module Rake
         EOSQL
 
         # make sure we do deletes and inserts on the helper table, not the view
-        Db.execute <<-EOSQL
+        execute <<-EOSQL
           create rule delete_operation_record as on delete to #{TABLE_TRACKER_NAME} 
             do instead
             delete from #{TABLE_TRACKER_HELPER_NAME} 
@@ -110,25 +109,25 @@ module Rake
         EOSQL
       end
 
-      def self.tear_down_tracking
+      def tear_down_tracking
         drop_view "fixed_pg_stat_operations"
         drop_view TABLE_TRACKER_NAME
         drop_table TABLE_TRACKER_HELPER_NAME
       end
 
-      def self.tracking_tables?
+      def tracking_tables?
         view_exists?(TABLE_TRACKER_NAME)
       end
 
-      def self.drop_table table_name
-        Db.execute "drop table if exists #{table_name} cascade"
+      def drop_table table_name
+        execute "drop table if exists #{table_name} cascade"
         return if table_name.casecmp(TABLE_TRACKER_HELPER_NAME) == 0 || 
           table_name.casecmp(TABLE_TRACKER_NAME) == 0
         track_drop table_name
       end
 
-      def self.track_drop table_name
-        Db.execute <<-EOSQL
+      def track_drop table_name
+        execute <<-EOSQL
           delete from #{TABLE_TRACKER_HELPER_NAME} 
           where 
             relation_name = '#{table_name}' and 
@@ -144,12 +143,12 @@ module Rake
           operations_supported_by_rules & [:create, :truncate]
         end
 
-        def self.track_creation table_name, n_tuples
+        def track_creation table_name, n_tuples
           # nothing to do; Greenplum tracks this operation in system tables already
           return nil
         end
 
-        def self.track_truncate table_name
+        def track_truncate table_name
           # nothing to do; Greenplum tracks this operation in system tables already
           return nil
         end
