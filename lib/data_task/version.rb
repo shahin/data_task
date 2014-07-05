@@ -1,5 +1,5 @@
 module Rake
-  module TableTask
+  module DataTask
     VERSION = "0.0.1"
   end
 end

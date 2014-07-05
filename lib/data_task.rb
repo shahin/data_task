@@ -1,32 +1,35 @@
-require 'table_task/version'
-require 'table_task/table'
+require 'data_task/version'
+require 'data_task/table'
 
 module Rake
   # #########################################################################
-  # A TableTask is a task that includes time based dependencies. If any of a
-  # TableTask's prerequisites has a timestamp that is later than the table
-  # represented by this task, then the table must be rebuilt (using the
+  # A DataTask is a task that includes time based dependencies. If any of a
+  # DataTask's prerequisites has a timestamp that is later than the data
+  # represented by this task, then the data must be rebuilt (using the
   # supplied actions).
-  #
-  module TableTask
+  module DataTask
 
-    class TableTask < Task
+    class DataTask < Task
 
-      def initialize(task_name, app)
+      # Instantiate a new DataTask.
+      #
+      # @param [Data] data the Data object that keeps track of existence and modification
+      # @param [Rake::Application] app required by the parent class's constructor 
+      def initialize(data, app)
         super
-        @table = task_name
+        @data = data
       end
 
       # Is this table task needed? Yes if it doesn't exist, or if its time stamp
       # is out of date.
       def needed?
-        !@table.exist? || out_of_date?(timestamp)
+        !@data.exist? || out_of_date?(timestamp)
       end
 
-      # Time stamp for table task.
+      # Time stamp for data task.
       def timestamp
-        if @table.exist?
-          mtime = @table.mtime.to_time
+        if @data.exist?
+          mtime = @data.mtime.to_time
           raise "Table #{name} exists but modified time is unavailable." if mtime.nil?
           mtime
         else
@@ -62,9 +65,9 @@ module Rake
   end
 end
 
-def table(*args, &block)
-  # The task name in *args here is a Table returned by the adapter. Rake will key this task by 
-  # Table.to_s in @tasks [Array]. All task recording and lookup in Rake is already done via to_s 
+def data(*args, &block)
+  # The task name in *args here is a Data returned by the adapter. Rake will key this task by 
+  # Data.to_s in @tasks [Array]. All task recording and lookup in Rake is already done via to_s 
   # already to accomdate tasks named by symbols.
-  Rake::TableTask::TableTask.define_task(*args, &block)
+  Rake::DataTask::DataTask.define_task(*args, &block)
 end

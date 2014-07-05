@@ -1,7 +1,7 @@
 require_relative '../../db'
 
 module Rake
-  module TableTask
+  module DataTask
 
     class Db
       module StandardTransactions

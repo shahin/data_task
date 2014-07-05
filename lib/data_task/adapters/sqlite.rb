@@ -3,7 +3,7 @@ require_relative 'support/transactions'
 require_relative 'support/booleans'
 
 module Rake
-  module TableTask
+  module DataTask
 
     class Sqlite < Db
 
@@ -67,6 +67,8 @@ module Rake
         )
       end
 
+      alias_method :data_mtime, :table_mtime
+
       def create_table table_name, data_definition, column_definitions, track_table=true
         drop_table table_name
         execute <<-EOSQL
@@ -78,6 +80,8 @@ module Rake
           track_creation table_name, 0
         end
       end
+
+      alias_method :create_data, :create_table
 
       def drop_table table_name
         execute "drop table if exists #{table_name}"
@@ -99,6 +103,8 @@ module Rake
         return if table_name.casecmp(TABLE_TRACKER_NAME) == 0
         track_drop table_name
       end
+
+      alias_method :drop_data, :drop_table
 
       def create_view view_name, select_stmt
         drop_view view_name
@@ -122,6 +128,8 @@ module Rake
         relation_exists?(table_name, 'table', options)
       end
 
+      alias_method :data_exists?, :table_exists?
+
       def view_exists? table_name, options = {}
         relation_exists?(table_name, 'view', options)
       end
@@ -131,6 +139,8 @@ module Rake
         execute "delete from #{table_name}"
         track_truncate table_name
       end
+
+      alias_method :truncate_data, :truncate_table
 
       def track_truncate table_name
         execute <<-EOSQL
@@ -153,7 +163,7 @@ module Rake
       end
 
       def [](name)
-        Table.new(name, self)
+        Data.new(name, self)
       end
 
 

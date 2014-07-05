@@ -4,9 +4,19 @@ require_relative './sql'
 require_relative './util'
 
 module Rake
-  module TableTask
+  module DataTask
 
     class Db
+
+      @connections = {}
+
+      def self.persisted_connection conn_options
+        @connections[conn_options]
+      end
+
+      def self.persist_connection conn, conn_options
+        @connections[conn_options] = conn
+      end
 
       LOG = Logger.new(STDOUT)
       LOG.level = Logger::WARN

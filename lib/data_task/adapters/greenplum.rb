@@ -4,7 +4,7 @@ require_relative 'support/booleans'
 require_relative './postgresql'
 
 module Rake
-  module TableTask
+  module DataTask
 
     class Greenplum < PostgreSQL
 

@@ -1,7 +1,7 @@
 require 'time'
 
 module Rake
-  module TableTask
+  module DataTask
 
     class Sql
 

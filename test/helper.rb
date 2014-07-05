@@ -8,18 +8,18 @@ require 'minitest-spec-context'
 
 require 'logger'
 
-require 'table_task/sql'
-require 'table_task/db'
-require 'table_task/table'
-require 'table_task'
+require 'data_task/sql'
+require 'data_task/db'
+require 'data_task/table'
+require 'data_task'
 
-require 'table_task/adapters/sqlite'
-require 'table_task/adapters/postgresql'
+require 'data_task/adapters/sqlite'
+require 'data_task/adapters/postgresql'
 
 def get_adapter
   # connect an adapter to the configured database for testing
-  config = YAML.load_file('config/database.yml')[ENV['TABLETASK_ENV']]
-  klass = "Rake::TableTask::#{config['adapter'].capitalize}".split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
+  config = YAML.load_file('config/database.yml')[ENV['DATATASK_ENV'] || 'sqlite_test']
+  klass = "Rake::DataTask::#{config['adapter'].capitalize}".split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
   adapter = klass.new(config)
 
   # extend the adapter to enable clean tracking setup/teardown within each test
