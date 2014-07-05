@@ -13,8 +13,25 @@ require 'table_task/db'
 require 'table_task/table'
 require 'table_task'
 
-def with_tracking &ops
-  Rake::TableTask::Db.set_up_tracking
-  ops.call
-  Rake::TableTask::Db.tear_down_tracking
+require 'table_task/adapters/sqlite'
+require 'table_task/adapters/postgresql'
+
+def get_adapter
+  # connect an adapter to the configured database for testing
+  config = YAML.load_file('config/database.yml')[ENV['TABLETASK_ENV']]
+  klass = "Rake::TableTask::#{config['adapter'].capitalize}".split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
+  adapter = klass.new(config)
+
+  # extend the adapter to enable clean tracking setup/teardown within each test
+  adapter.extend(TrackingSetupTeardownHelper)
+
+  adapter
+end
+
+module TrackingSetupTeardownHelper
+  def with_tracking &ops
+    set_up_tracking
+    ops.call
+    tear_down_tracking
+  end
 end

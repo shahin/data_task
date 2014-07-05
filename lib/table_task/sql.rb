@@ -5,18 +5,6 @@ module Rake
 
     class Sql
 
-      def self.get_array sql
-        Db.execute(sql)
-      end
-
-      def self.truthy_value
-        Db.truthy_value
-      end
-
-      def self.falsey_value
-        Db.falsey_value
-      end
-
       # Parse a single string value into an object using the supplied type logic.
       #
       # @param r [Array] an array (table) of arrays (rows), usually resulting from a database query
@@ -36,10 +24,9 @@ module Rake
 
       # Get a single integer via SQL.
       #
-      # @param sql [String] the SQL to produce the integer
-      # @returns [Integer] any valid value for this Ruby type
-      def self.get_single_int sql
-        r = get_array(sql)
+      # @param r [Array] an array containing a single result from a query
+      # @returns [Integer] the single result converted to an Integer
+      def self.get_single_int r
         parse_single_value r do
           Integer(r.first.first)
         end
@@ -47,12 +34,12 @@ module Rake
 
       # Get a single time via SQL.
       #
-      # @param sql [String] the SQL to produce the time string with timezone info
-      # @returns [Time] the time produced by the SQL, converted to Ruby's local time
-      def self.get_single_time sql
-        r = get_array(sql)
+      # @param r [Array] an array containing a single result from a query
+      # @returns [Time] the single result converted to Ruby's local time
+      def self.get_single_time r
         parse_single_value r do
-          Time.parse(r.first.first)
+          t = Time.parse(r.first.first)
+          DateTime.parse(t.to_s)
         end
       end
 

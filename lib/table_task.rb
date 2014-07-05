@@ -12,16 +12,21 @@ module Rake
 
     class TableTask < Task
 
+      def initialize(task_name, app)
+        super
+        @table = task_name
+      end
+
       # Is this table task needed? Yes if it doesn't exist, or if its time stamp
       # is out of date.
       def needed?
-        !Table.exist?(name) || out_of_date?(timestamp)
+        !@table.exist? || out_of_date?(timestamp)
       end
 
       # Time stamp for table task.
       def timestamp
-        if Table.exist?(name)
-          mtime = Table.mtime(name.to_s)
+        if @table.exist?
+          mtime = @table.mtime.to_time
           raise "Table #{name} exists but modified time is unavailable." if mtime.nil?
           mtime
         else
@@ -33,7 +38,12 @@ module Rake
 
       # Are there any prerequisites with a later time than the given time stamp?
       def out_of_date?(stamp)
-        @prerequisites.any? { |n| application[n, @scope].timestamp > stamp}
+        @prerequisites.any? do |n| 
+          prereq_time = application[n, @scope].timestamp
+          return false if prereq_time == Rake::EARLY
+
+          prereq_time > stamp
+        end
       end
 
       # ----------------------------------------------------------------
@@ -53,5 +63,8 @@ module Rake
 end
 
 def table(*args, &block)
+  # The task name in *args here is a Table returned by the adapter. Rake will key this task by 
+  # Table.to_s in @tasks [Array]. All task recording and lookup in Rake is already done via to_s 
+  # already to accomdate tasks named by symbols.
   Rake::TableTask::TableTask.define_task(*args, &block)
 end
