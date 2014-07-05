@@ -14,51 +14,70 @@ module Rake
         table.mtime > original_mtime
       end
 
+      around do |test|
+        # connect an adapter to the configured database for testing
+        config = YAML.load_file('config/database.yml')[ENV['TABLETASK_ENV']]
+        klass = "Rake::TableTask::#{config['adapter'].capitalize}".split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
+        @adapter = klass.new(config)
+
+        # extend the adapter to enable clean tracking setup/teardown within each test
+        @adapter.extend(TrackingSetupTeardownHelper)
+
+        @adapter.with_transaction_rollback do
+          test.call
+        end
+      end
+
       it "has a modified time after creation" do
-        with_tracking do
-          t = Table.new test_table_name, nil, "(var1 integer)"
-          t.mtime.must_be :>, Time.new(0)
+        @adapter.with_tracking do
+          @adapter.create_table test_table_name, nil, "(var1 integer)"
+          t = Table.new(test_table_name, @adapter)
+          t.mtime.to_time.must_be :>, Time.new(0)
         end
       end
 
       it "has an updated modified time after insert" do
-        with_tracking do
-          t = Table.new test_table_name, nil, "(var1 integer)"
+        @adapter.with_tracking do
+          @adapter.create_table test_table_name, nil, "(var1 integer)"
+          t = Table.new(test_table_name, @adapter)
           operation = lambda do
-            Db.execute "insert into #{test_table_name} values (1)"
+            @adapter.execute "insert into #{test_table_name} values (1)"
           end
           mtime_updated?(t, operation).must_equal true
         end
       end
 
       it "has an updated modified time after update" do
-        with_tracking do
-          t = Table.new test_table_name, nil, "(var1 integer, var2 integer)"
-          Db.execute "insert into #{test_table_name} values (1, 1)"
+        @adapter.with_tracking do
+          @adapter.create_table test_table_name, nil, "(var1 integer, var2 integer)"
+          t = Table.new(test_table_name, @adapter)
+          @adapter.execute "insert into #{test_table_name} values (1, 1)"
           operation = lambda do 
-            Db.execute "update #{test_table_name} set var2 = 2 where var1 = 1"
+            @adapter.execute "update #{test_table_name} set var2 = 2 where var1 = 1"
           end
           mtime_updated?(t, operation).must_equal true
         end
       end
 
       it "has an updated modified time after delete" do
-        with_tracking do
-          t = Table.new test_table_name, nil, "(var1 integer)"
-          Db.execute "insert into #{test_table_name} values (1)"
+        @adapter.with_tracking do
+          @adapter.create_table test_table_name, nil, "(var1 integer)"
+          t = Table.new(test_table_name, @adapter)
+          @adapter.execute "insert into #{test_table_name} values (1)"
           operation = lambda do
-            Db.execute "delete from #{test_table_name}"
+            @adapter.execute "delete from #{test_table_name}"
           end
           mtime_updated?(t, operation).must_equal true
         end
       end
 
       it "has an updated modified time after truncate" do
-        with_tracking do
-          t = Table.new test_table_name, nil, "(var1 integer)"
-          Db.execute "insert into #{test_table_name} values (1)"
+        @adapter.with_tracking do
+          @adapter.create_table test_table_name, nil, "(var1 integer)"
+          t = Table.new(test_table_name, @adapter)
+          @adapter.execute "insert into #{test_table_name} values (1)"
           operation = lambda do
-            Db.truncate_table test_table_name
+            @adapter.truncate_table test_table_name
           end
           mtime_updated?(t, operation).must_equal true
         end
