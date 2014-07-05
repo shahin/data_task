@@ -13,8 +13,14 @@ require 'table_task/db'
 require 'table_task/table'
 require 'table_task'
 
-def with_tracking &ops
-  Rake::TableTask::Db.set_up_tracking
-  ops.call
-  Rake::TableTask::Db.tear_down_tracking
+require 'table_task/adapters/sqlite'
+require 'table_task/adapters/postgresql'
+
+
+module TrackingSetupTeardownHelper
+  def with_tracking &ops
+    set_up_tracking
+    ops.call
+    tear_down_tracking
+  end
 end

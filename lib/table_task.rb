@@ -14,6 +14,11 @@ module Rake
 
       attr_accessor :table
 
+      def initialize(task_name, app)
+        super
+        @table = task_name
+      end
+
       # Is this table task needed? Yes if it doesn't exist, or if its time stamp
       # is out of date.
       def needed?
@@ -36,8 +41,10 @@ module Rake
       # Are there any prerequisites with a later time than the given time stamp?
       def out_of_date?(stamp)
         @prerequisites.any? do |n| 
-          prereq_stamp = DateTime.parse(application[n, @scope].timestamp.to_s)
-          prereq_stamp > stamp
+          prereq_time = application[n, @scope].timestamp
+          return false if prereq_time == Rake::EARLY
+
+          DateTime.parse(prereq_time.to_s) > stamp
         end
       end
 

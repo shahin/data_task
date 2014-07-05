@@ -8,15 +8,24 @@ module Rake
 
     class PostgreSQL < Db
 
-      def initialize host, port, database, username, password=nil
+      # Connect to a PostgreSQL database.
+      #
+      # @param [Hash] options the connection parameters
+      # @option options [String] 'host' the server hostname or IP address
+      # @option options [Integer] 'port' the server port number
+      # @option options [String] 'database' the database name
+      # @option options [String] 'username' the name of the database user to connect as
+      # @option options [String] 'password' the database user's password
+      # @return [Sqlite] an instance of this adapter
+      def initialize options
         @connection = PG::Connection.new(
-          host || 'localhost',
-          port || 5432,
+          options['host'] || 'localhost',
+          options['port'] || 5432,
           nil,
           nil,
-          database,
-          username,
-          password || ''
+          options['database'],
+          options['username'],
+          options['password'] || ''
         )
         @connection.set_notice_processor do |msg|
           if msg =~ /^ERROR:/

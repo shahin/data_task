@@ -7,8 +7,13 @@ module Rake
 
     class Sqlite < Db
 
-      def initialize database=nil
-        @connection = SQLite3::Database.new(database || 'temp')
+      # Connect to an Sqlite database.
+      #
+      # @param [Hash] options the connection parameters
+      # @option options [String] 'database' the database name
+      # @return [Sqlite] an instance of this adapter
+      def initialize options
+        @connection = SQLite3::Database.new(options['database'] || 'temp')
       end
 
       def execute sql
