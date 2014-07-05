@@ -15,14 +15,7 @@ module Rake
       end
 
       around do |test|
-        # connect an adapter to the configured database for testing
-        config = YAML.load_file('config/database.yml')[ENV['TABLETASK_ENV']]
-        klass = "Rake::TableTask::#{config['adapter'].capitalize}".split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
-        @adapter = klass.new(config)
-
-        # extend the adapter to enable clean tracking setup/teardown within each test
-        @adapter.extend(TrackingSetupTeardownHelper)
-
+        @adapter = get_adapter
         @adapter.with_transaction_rollback do
           test.call
         end
