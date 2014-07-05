@@ -17,6 +17,7 @@ module Rake
         klass = "Rake::TableTask::#{config['adapter'].capitalize}".split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
         @adapter = klass.new(config)
 
+        # extend the adapter to enable clean tracking setup/teardown within each test
         @adapter.extend(TrackingSetupTeardownHelper)
 
         @adapter.with_transaction_rollback do
@@ -40,7 +41,7 @@ module Rake
           Table.drop(ttask.name) rescue nil
           assert ttask.needed?, "table should be needed"
 
-          Db.create_table name, nil, '(var1 integer)'
+          @adapter.create_table name, nil, '(var1 integer)'
 
           assert_equal nil, ttask.prerequisites.collect{|n| Task[n].timestamp}.max
           assert ! ttask.needed?, "table should not be needed"
@@ -48,7 +49,6 @@ module Rake
       end
 
       def test_table_times_new_depends_on_old
-        puts @adapter.method(:with_tracking)
         @adapter.with_tracking do
           create_timed_tables(@adapter, OLDTABLE, NEWTABLE)
 
@@ -68,7 +68,7 @@ module Rake
 
           create_timed_tables(@adapter, NEWTABLE)
 
-          t1 = Rake.application.intern(TableTask, NEWTABLE).enhance([name])
+          t1 = Rake.application.intern(TableTask, @adapter[NEWTABLE]).enhance([name])
 
           assert t1.needed?, "depending on non-table task uses Time.now"
 
@@ -82,8 +82,8 @@ module Rake
         @adapter.with_tracking do
           create_timed_tables(@adapter, OLDTABLE, NEWTABLE)
 
-          t1 = Rake.application.intern(TableTask, OLDTABLE).enhance([NEWTABLE])
-          t2 = Rake.application.intern(TableTask, NEWTABLE)
+          t1 = Rake.application.intern(TableTask, @adapter[OLDTABLE]).enhance([@adapter[NEWTABLE]])
+          t2 = Rake.application.intern(TableTask, @adapter[NEWTABLE])
           assert ! t2.needed?, "Should not need to build new table"
           preq_stamp = t1.prerequisites.collect{|t| Task[t].timestamp}.max
           assert_equal t2.timestamp, preq_stamp
@@ -155,7 +155,7 @@ module Rake
           create_timed_tables(@adapter, OLDTABLE, NEWTABLE)
 
           @ran = false
-          table NEWTABLE => NEWFILE do
+          table @adapter[NEWTABLE] => NEWFILE do
             @ran = true
           end
 
@@ -169,13 +169,13 @@ module Rake
           create_file(NEWFILE)
           sleep(1)
 
-          table NEWTABLE do
+          table @adapter[NEWTABLE] do
             create_timed_tables(@adapter, OLDTABLE, NEWTABLE)
           end
           Task[@adapter[NEWTABLE]].invoke
 
           @ran = false
-          file NEWFILE => NEWTABLE do
+          file NEWFILE => @adapter[NEWTABLE] do
             @ran = true
           end
 
@@ -186,7 +186,7 @@ module Rake
 
       def test_file_depends_on_old_table
         @adapter.with_tracking do
-          table NEWTABLE do
+          table @adapter[NEWTABLE] do
             create_timed_tables(@adapter, OLDTABLE, NEWTABLE)
           end
           Task[@adapter[NEWTABLE]].invoke
@@ -195,7 +195,7 @@ module Rake
           create_file(NEWFILE)
 
           @ran = false
-          file NEWFILE => NEWTABLE do
+          file NEWFILE => @adapter[NEWTABLE] do
             @ran = true
           end
 
