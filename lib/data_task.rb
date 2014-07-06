@@ -1,3 +1,4 @@
+require 'rake'
 require 'data_task/version'
 require 'data_task/table'
 
@@ -9,7 +10,7 @@ module Rake
   # supplied actions).
   module DataTask
 
-    class DataTask < Task
+    class DataTask < ::Rake::Task
 
       # Instantiate a new DataTask.
       #
