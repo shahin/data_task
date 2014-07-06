@@ -8,7 +8,7 @@ before_script:
   - sqlite3 ci_test ''
 
 env:
-  - DATATASK_ENV=postgresql_test
+  - DATATASK_ENV=postgres_test
   - DATATASK_ENV=sqlite_test
 
 notifications:
