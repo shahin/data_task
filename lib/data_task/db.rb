@@ -7,16 +7,8 @@ module Rake
   module DataTask
 
     class Db
-
-      @connections = {}
-
-      def self.persisted_connection conn_options
-        @connections[conn_options]
-      end
-
-      def self.persist_connection conn, conn_options
-        @connections[conn_options] = conn
-      end
+      # This is the base class for SQL-compliant relational databases. It contains utility methods
+      # that probably don't vary across databases, and it shouldn't be instantiated.
 
       LOG = Logger.new(STDOUT)
       LOG.level = Logger::WARN

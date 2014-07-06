@@ -1,6 +1,7 @@
 require 'pg'
 require_relative 'support/transactions'
 require_relative 'support/booleans'
+require_relative 'support/connection_persistence'
 
 module Rake
   module DataTask
@@ -8,8 +9,15 @@ module Rake
     class Postgres < Db
 
       @connections = {}
+      extend ConnectionPersistence
 
-      # Connect to a PostgreSQL database.
+      include StandardBooleans
+      include StandardTransactions
+
+      # Connect to a PostgreSQL database. 
+      #
+      # If we've already used this class to connect to the same host, port, and database with the 
+      # same username, re-use that connection for this instance.
       #
       # @param [Hash] options the connection parameters
       # @option options [String] 'host' the server hostname or IP address
@@ -85,9 +93,6 @@ module Rake
           raise e
         end
       end
-
-      include StandardBooleans
-      include StandardTransactions
 
       def tracking_tables?
         data_exists?(TABLE_TRACKER_NAME)
