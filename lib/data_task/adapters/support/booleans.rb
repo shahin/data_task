@@ -1,5 +1,5 @@
 module Rake
-  module TableTask
+  module DataTask
 
     class Db
       

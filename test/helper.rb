@@ -8,13 +8,30 @@ require 'minitest-spec-context'
 
 require 'logger'
 
-require_relative '../sql.rb'
-require_relative '../db.rb'
-require_relative '../table.rb'
-require_relative '../table_task.rb'
+require 'data_task/sql'
+require 'data_task/db'
+require 'data_task/table'
+require 'data_task'
 
-def with_tracking &ops
-  Rake::TableTask::Db.set_up_tracking
-  ops.call
-  Rake::TableTask::Db.tear_down_tracking
+require 'data_task/adapters/sqlite'
+require 'data_task/adapters/postgres'
+
+def get_adapter
+  # connect an adapter to the configured database for testing
+  config = YAML.load_file('test/config/database.yml')[ENV['DATATASK_ENV'] || 'sqlite_test']
+  klass = "Rake::DataTask::#{config['adapter'].capitalize}".split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
+  adapter = klass.new(config)
+
+  # extend the adapter to enable clean tracking setup/teardown within each test
+  adapter.extend(TrackingSetupTeardownHelper)
+
+  adapter
+end
+
+module TrackingSetupTeardownHelper
+  def with_tracking &ops
+    set_up_tracking
+    ops.call
+    tear_down_tracking
+  end
 end

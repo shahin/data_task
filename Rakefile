@@ -1,26 +1,17 @@
-require 'rake/testtask'
-require_relative './db.rb'
-require_relative './table_task.rb'
+require 'data_task'
 
-Rake::TestTask.new do |t|
-  t.libs << "spec"
-  t.test_files = FileList['test/**/*_spec.rb', 'test/test_*.rb']
-  t.verbose
-end
+desc "Run tests"
+task :default => :'data_task:test'
 
-task :default => :test
+namespace :data_task do
 
-task :reset_tracking, [:search_path] do |t, args|
-  args.with_defaults(:search_path => nil)
-  Rake::TableTask::Db.reset_tracking args
-end
+  require 'bundler/gem_tasks'
+  require 'rake/testtask'
 
-task :tear_down_tracking, [:search_path] do |t, args|
-  args.with_defaults(:search_path => nil)
-  Rake::TableTask::Db.tear_down_tracking args
-end
+  Rake::TestTask.new do |t|
+    t.libs << "spec"
+    t.test_files = FileList['test/**/*_spec.rb', 'test/test_*.rb']
+    t.verbose
+  end
 
-task :set_up_tracking, [:search_path] do |t, args|
-  args.with_defaults(:search_path => nil)
-  Rake::TableTask::Db.set_up_tracking args
 end
