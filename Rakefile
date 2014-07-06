@@ -1,12 +1,19 @@
-require 'rake/testtask'
-require 'bundler/gem_tasks'
 require 'data_task'
 
-Rake::TestTask.new do |t|
-  t.libs << "spec"
-  t.test_files = FileList['test/**/*_spec.rb', 'test/test_*.rb']
-  t.verbose
+desc "Run tests"
+task :data_task => :'data_task:test'
+
+namespace :data_task do
+
+  require 'bundler/gem_tasks'
+  require 'rake/testtask'
+
+  Rake::TestTask.new do |t|
+    t.libs << "spec"
+    t.test_files = FileList['test/**/*_spec.rb', 'test/test_*.rb']
+    t.verbose
+  end
+
 end
 
-desc "Run tests"
-task :default => :test
+load 'data_task/tasks/examples.rake'

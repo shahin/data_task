@@ -59,6 +59,9 @@ module Rake
           # reuse an existing connection
           @connection = existing_connection
         end
+
+        # set up trackig if it isn't set up already
+        set_up_tracking if !tracking_tables?
       end
 
       def [](name)

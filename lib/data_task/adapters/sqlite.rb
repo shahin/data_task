@@ -14,6 +14,9 @@ module Rake
       # @return [Sqlite] an instance of this adapter
       def initialize options
         @connection = SQLite3::Database.new(options['database'] || 'temp')
+
+        # set up trackig if it isn't set up already
+        set_up_tracking if !tracking_tables?
       end
 
       def execute sql
