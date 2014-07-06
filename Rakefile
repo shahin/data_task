@@ -15,5 +15,3 @@ namespace :data_task do
   end
 
 end
-
-load 'data_task/tasks/examples.rake'
