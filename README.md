@@ -3,7 +3,7 @@
 
 # DataTask
 
-DataTask brings dependency-based programming to data workflows with the Rake build tool. This gem provides the DataTask, analogous to Rake's built-in FileTask but extended to work with pluggable backends beyond the local filesystem.
+DataTask provides dependency-based programming for data workflows on top of the Rake build tool. This gem provides the DataTask, analogous to Rake's built-in FileTask but extended to work with pluggable backends beyond the local filesystem.
 
 Adapters are included for:
 
