@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["shahin.saneinejad@gmail.com"]
   spec.summary       = %q{A Rake task for managing data across multiple datastores.}
   spec.description   = %q{DataTask provides dependency-based programming for data workflows on top of the Rake build tool.}
-  spec.homepage      = ""
+  spec.homepage      = "https://github.com/shahin/data_task"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")
