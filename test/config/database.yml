@@ -1,0 +1,10 @@
+sqlite_test:
+  adapter: sqlite
+  database: ci_test
+
+postgres_test:
+  adapter: postgres
+  database: ci_test
+  host: localhost
+  port: 5432
+  username: postgres

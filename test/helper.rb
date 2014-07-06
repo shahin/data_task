@@ -18,7 +18,7 @@ require 'data_task/adapters/postgresql'
 
 def get_adapter
   # connect an adapter to the configured database for testing
-  config = YAML.load_file('config/database.yml')[ENV['DATATASK_ENV'] || 'sqlite_test']
+  config = YAML.load_file('test/config/database.yml')[ENV['DATATASK_ENV'] || 'sqlite_test']
   klass = "Rake::DataTask::#{config['adapter'].capitalize}".split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
   adapter = klass.new(config)
 

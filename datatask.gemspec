@@ -9,7 +9,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Shahin Saneinejad"]
   spec.email         = ["shahin.saneinejad@gmail.com"]
   spec.summary       = %q{A Rake task for managing data across multiple datastores.}
-  spec.description   = %q{DataTask brings dependency-based programming to data workflows with the Rake build tool.}
+  spec.description   = %q{DataTask provides dependency-based programming for data workflows on top of the Rake build tool.}
   spec.homepage      = ""
   spec.license       = "MIT"
 
