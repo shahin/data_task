@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/shahin/datatask.svg?branch=master)](https://travis-ci.org/shahin/datatask)
-[![Coverage Status](https://img.shields.io/coveralls/shahin/datatask.svg)](https://coveralls.io/r/shahin/datatask?branch=master)
+[![Build Status](https://travis-ci.org/shahin/data_task.svg?branch=master)](https://travis-ci.org/shahin/data_task)
+[![Coverage Status](https://img.shields.io/coveralls/shahin/data_task.svg)](https://coveralls.io/r/shahin/data_task?branch=master)
 
 # DataTask
 
@@ -7,7 +7,7 @@ DataTask provides dependency-based programming for data workflows on top of the 
 
 Adapters are included for:
 
-1. Sqlite3
+1. SQLite3
 2. PostgreSQL
 3. Greenplum
 
@@ -15,7 +15,7 @@ Adapters are included for:
 
 Add this line to your application's Gemfile:
 
-    gem 'datatask'
+    gem 'data_task'
 
 And then execute:
 
@@ -23,7 +23,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install datatask
+    $ gem install data_task
 
 ## Usage
 
@@ -31,7 +31,7 @@ TODO: Write usage instructions here
 
 ## Contributing
 
-1. Fork it ( https://github.com/[my-github-username]/datatask/fork )
+1. Fork it ( https://github.com/[my-github-username]/data_task/fork )
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
