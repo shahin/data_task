@@ -1,12 +1,12 @@
 require 'pg'
 require_relative 'support/transactions'
 require_relative 'support/booleans'
-require_relative './postgresql'
+require_relative './postgres'
 
 module Rake
   module DataTask
 
-    class Greenplum < PostgreSQL
+    class Greenplum < Postgres
 
       TABLE_TRACKER_HELPER_NAME = "operations"
 

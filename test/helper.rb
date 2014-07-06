@@ -14,7 +14,7 @@ require 'data_task/table'
 require 'data_task'
 
 require 'data_task/adapters/sqlite'
-require 'data_task/adapters/postgresql'
+require 'data_task/adapters/postgres'
 
 def get_adapter
   # connect an adapter to the configured database for testing
