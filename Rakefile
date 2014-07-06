@@ -1,7 +1,7 @@
 require 'data_task'
 
 desc "Run tests"
-task :data_task => :'data_task:test'
+task :default => :'data_task:test'
 
 namespace :data_task do
 
