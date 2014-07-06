@@ -10,8 +10,8 @@ module Rake
 
       TABLE_TRACKER_HELPER_NAME = "operations"
 
-      def set_up_tracking
-        tear_down_tracking
+      def self.set_up_tracking options
+        tear_down_tracking options
         super
 
         execute "alter table #{TABLE_TRACKER_NAME} rename to #{TABLE_TRACKER_HELPER_NAME}"
@@ -109,7 +109,7 @@ module Rake
         EOSQL
       end
 
-      def tear_down_tracking
+      def self.tear_down_tracking options
         drop_view "fixed_pg_stat_operations"
         drop_view TABLE_TRACKER_NAME
         drop_table TABLE_TRACKER_HELPER_NAME

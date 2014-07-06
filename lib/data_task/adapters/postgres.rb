@@ -88,12 +88,26 @@ module Rake
 
       def execute sql
         connect if @connection.nil?
+
         begin
+
           r = @connection.exec sql
           r.values
-        rescue PGError => e
-          LOG.info e.message.chomp
+
+        rescue PG::UndefinedTable => e
+
+          if /ERROR:  relation "(last_operations|.*\.last_operations)" does not exist/ =~ e.message
+            LOG.error "Tracking is not set up in this schema. Set up tracking in this schema first."
+          end
+          execute "rollback;"
           raise e
+
+        rescue PGError => e
+
+          LOG.info e.message.chomp
+          execute "rollback;"
+          raise e
+
         end
       end
 
@@ -101,30 +115,47 @@ module Rake
         data_exists?(TABLE_TRACKER_NAME)
       end
 
-      def set_up_tracking
-        tear_down_tracking
-        column_definitions = table_tracker_columns.map do |col,col_defn|
-          col.to_s + ' ' + col_defn[:data_type].to_s
-        end.join(', ')
-        create_table TABLE_TRACKER_NAME, nil, " (#{column_definitions})", false
+      def set_up_tracking options = {}
+        tear_down_tracking options
+
+        target_search_path = options[:search_path] || search_path.join(',')
+        with_search_path(target_search_path) do
+
+          column_definitions = table_tracker_columns.map do |col, col_defn|
+            col.to_s + ' ' + col_defn[:data_type].to_s
+          end.join(', ')
+          create_table TABLE_TRACKER_NAME, nil, " (#{column_definitions})", false
+
+        end
       end
 
-      def tear_down_tracking
-        drop_table TABLE_TRACKER_NAME
-      end
-      
-      def reset_tracking
-        truncate_table TABLE_TRACKER_NAME
+      def tear_down_tracking options = {}
+        target_search_path = options[:search_path] || search_path.join(',')
+        with_search_path(target_search_path) do
+          drop_table TABLE_TRACKER_NAME
+        end
       end
 
-      def table_mtime table_name
-        Sql.get_single_time(
-          execute <<-EOSQL
-            select max(time) 
-            from #{TABLE_TRACKER_NAME} 
-            where relation_name = '#{table_name}'
-          EOSQL
-        )
+      def reset_tracking options = {}
+        target_search_path = options[:search_path] || search_path.join(',')
+        with_search_path(target_search_path) do
+          truncate_table TABLE_TRACKER_NAME
+        end
+      end
+
+      def table_mtime qualified_table_name
+        schema_name, table_name = parse_schema_and_table_name(qualified_table_name)
+        schema_name = first_schema_for(table_name) if schema_name.nil?
+
+        with_search_path(schema_name) do
+          Sql.get_single_time(
+            execute <<-EOSQL
+              select max(time)
+              from #{schema_name}.#{TABLE_TRACKER_NAME}
+              where relation_name = '#{table_name}'
+            EOSQL
+          )
+        end
       end
 
       alias_method :data_mtime, :table_mtime
@@ -143,16 +174,21 @@ module Rake
         track_drop table_name
       end
 
-      alias_method :drop_data, :drop_table
-
       def track_drop table_name
-        execute <<-EOSQL
-          delete from #{TABLE_TRACKER_NAME} 
-          where 
-            relation_name = '#{table_name}' and 
-            relation_type = '#{relation_type_values[:table]}'
-        EOSQL
+        schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+        table_tracker_name = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
+
+        if table_exists?(table_tracker_name)
+          execute <<-EOSQL
+            delete from #{table_tracker_name}
+            where
+              relation_name = '#{unqualified_table_name}' and 
+              relation_type = '#{relation_type_values[:table]}'
+          EOSQL
+        end
       end
+
+      alias_method :drop_data, :drop_table
 
       def table_exists? table_name, options = {}
         relation_exists? table_name, :table, options
@@ -197,6 +233,22 @@ module Rake
         }
       end
 
+      def with_search_path schemas
+        original_search_path = search_path
+        execute "set search_path to #{Array(schemas).join(',')}"
+        r = yield
+        execute "set search_path to #{original_search_path.join(',')}"
+        r
+      end
+
+      def with_role role
+        original_role = current_user
+        execute "set role #{role}"
+        r = yield
+        execute "set role #{original_role}"
+        r
+      end
+
 
 
       private
@@ -209,28 +261,104 @@ module Rake
           [:update, :insert, :delete]
         end
 
+        # Split a table name qualified with a schema name into separate strings for schema and 
+        # table names.
+        #
+        # @returns [String, String] the schema name and table name, separately, for table_name. If
+        # table_name is unqualified with the schema name, return [nil, table_name].
+        def parse_schema_and_table_name table_name
+          return [nil, table_name] if table_name.count('.') == 0
+
+          if table_name.count('.') > 1
+            raise "Invalid relation reference #{table_name} (only one '.' is allowed)"
+          end
+
+          schema_name, table_name = table_name.split('.')
+          [schema_name, table_name]
+        end
+
+        # @returns [Array] the ordered schema names in the search path as strings
+        def search_path
+          current_search_path = execute("show search_path").first.first.split(',').map { |s| s.strip }
+          username = current_user
+
+          # the default search path begins with a symbolic reference to the current username
+          # if that reference is in the search path, replace it with the resolved current username
+          if current_search_path.first == '"$user"'
+            user_schema_exists = execute <<-EOSQL
+              select 1
+              from information_schema.schemata 
+              where schema_name = '#{username}'
+            EOSQL
+
+            if user_schema_exists.nil? || user_schema_exists.first.nil?
+              current_search_path = current_search_path[1..-1]
+            else
+              current_search_path = [username] + current_search_path[1..-1]
+            end
+          end
+
+          current_search_path.map(&:downcase)
+        end
+
+        # @returns [String] the name of the current database user
+        def current_user
+          execute("select current_user").first.first
+        end
+
+        # @returns [String] the name of the first schema in the search path containing table_name
+        def first_schema_for table_name
+          return if !table_exists?(table_name)
+          schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+
+          search_path_when_stmts = []
+          search_path.each_with_index do |s,i| 
+            search_path_when_stmts << "when table_schema = '#{s}' then #{(i+1).to_s}"
+          end
+
+          schema_name = execute <<-EOSQL
+            select 
+              table_schema,
+              search_order
+            from (
+              select 
+                table_schema, 
+                table_name,
+                case 
+                  #{search_path_when_stmts.join(' ')}
+                  else 'NaN'::float 
+                end as search_order
+              from information_schema.tables
+              where table_name ilike '#{unqualified_table_name}'
+              ) a
+            order by search_order
+            limit 1
+          EOSQL
+          schema_name.first.first
+        end
+
         def rule_name table_name, operation
           "#{table_name}_#{operation.to_s}"
         end
 
-        # ways to prevent data integrity problems due to the timestamp being at the beginning of the transaction
-        # 1. set transaction isolation level serializable
-        # 2. 
         def create_tracking_rules table_name
+          schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+          qualified_table_tracker = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
+
           operations_supported_by_db_rules.each do |operation|
             execute <<-EOSQL
-              create or replace rule #{rule_name(table_name, operation)} as 
+              create or replace rule "#{rule_name(table_name, operation)}" as
                 on #{operation.to_s} to #{table_name} do also (
 
-                  delete from #{TABLE_TRACKER_NAME} where 
-                    relation_name = '#{table_name}' and 
+                  delete from #{qualified_table_tracker} where
+                    relation_name = '#{unqualified_table_name}' and
                     relation_type = '#{relation_type_values[:table]}'
                     ;
 
-                  insert into #{TABLE_TRACKER_NAME} values (
-                    '#{table_name}', 
-                    '#{relation_type_values[:table]}', 
-                    '#{operation_values[operation]}', 
+                  insert into #{qualified_table_tracker} values (
+                    '#{unqualified_table_name}',
+                    '#{relation_type_values[:table]}',
+                    '#{operation_values[operation]}',
                     clock_timestamp()
                   );
 
@@ -240,14 +368,17 @@ module Rake
         end
 
         def track_creation table_name, n_tuples
+          schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+          qualified_table_tracker = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
+
           operation = :create
           execute <<-EOSQL
-            delete from #{TABLE_TRACKER_NAME} where
-              relation_name = '#{table_name}' and
+            delete from #{qualified_table_tracker} where
+              relation_name = '#{unqualified_table_name}' and
               relation_type = '#{relation_type_values[:table]}'
               ;
-            insert into #{TABLE_TRACKER_NAME} values (
-              '#{table_name}',
+            insert into #{qualified_table_tracker} values (
+              '#{unqualified_table_name}',
               '#{relation_type_values[:table]}',
               '#{operation_values[operation]}',
               clock_timestamp()
@@ -256,24 +387,27 @@ module Rake
         end
 
         def track_truncate table_name
+          schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+          qualified_table_tracker = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
+
           execute <<-EOSQL
-            update #{TABLE_TRACKER_NAME}
+            update #{qualified_table_tracker}
             set 
               operation = '#{operation_values[:truncate]}',
               time = clock_timestamp()
             where
-              relation_name = '#{table_name}' and
+              relation_name = '#{unqualified_table_name}' and
               relation_type = '#{relation_type_values[:table]}'
           EOSQL
         end
 
         def relation_exists? relation_name, relation_type, options = {}
-          options = { :schema_names => nil }.merge(options)
+          schema_name, unqualified_relation_name = parse_schema_and_table_name(relation_name)
 
-          if !options[:schema_names].nil?
-            schema_conditions_sql = "and table_schema in (#{options[:schema_names].to_quoted_s})"
+          if !schema_name.nil?
+            schema_conditions_sql = "table_schema ilike '#{schema_name}'"
           else
-            schema_conditions_sql = 'true'
+            schema_conditions_sql = "table_schema in (#{search_path.to_quoted_s})"
           end
 
           n_matches = Sql.get_single_int(
@@ -281,7 +415,7 @@ module Rake
               select count(*)
               from information_schema.tables 
               where 
-                table_name = '#{relation_name}' and
+                table_name = '#{unqualified_relation_name}' and
                 table_type = '#{relation_type_values[relation_type]}' and
                 #{ schema_conditions_sql }
             EOSQL
