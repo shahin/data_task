@@ -1,6 +1,6 @@
 require 'rake'
 require 'data_task/version'
-require 'data_task/table'
+require 'data_task/data'
 
 module Rake
   # #########################################################################

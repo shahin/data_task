@@ -10,7 +10,7 @@ require 'logger'
 
 require 'data_task/sql'
 require 'data_task/db'
-require 'data_task/table'
+require 'data_task/data'
 require 'data_task'
 
 require 'data_task/adapters/sqlite'
