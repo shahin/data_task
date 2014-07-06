@@ -1,14 +1,23 @@
 require 'pg'
 require_relative 'support/transactions'
 require_relative 'support/booleans'
-require 'table_task/table'
+require_relative 'support/connection_persistence'
 
 module Rake
-  module TableTask
+  module DataTask
 
-    class PostgreSQL < Db
+    class Postgres < Db
 
-      # Connect to a PostgreSQL database.
+      @connections = {}
+      extend ConnectionPersistence
+
+      include StandardBooleans
+      include StandardTransactions
+
+      # Connect to a PostgreSQL database. 
+      #
+      # If we've already used this class to connect to the same host, port, and database with the 
+      # same username, re-use that connection for this instance.
       #
       # @param [Hash] options the connection parameters
       # @option options [String] 'host' the server hostname or IP address
@@ -18,26 +27,42 @@ module Rake
       # @option options [String] 'password' the database user's password
       # @return [Sqlite] an instance of this adapter
       def initialize options
-        @connection = PG::Connection.new(
-          options['host'] || 'localhost',
-          options['port'] || 5432,
-          nil,
-          nil,
-          options['database'],
-          options['username'],
-          options['password'] || ''
-        )
-        @connection.set_notice_processor do |msg|
-          if msg =~ /^ERROR:/
-            LOG.error('psql') { msg.gsub(/\n/,'; ') }
-          else
-            LOG.info('psql') { msg.gsub(/\n/,'; ') }
+        host = options['host'] || 'localhost'
+        port = options['port'] || 5432
+        database = options['database']
+        username = options['username']
+
+        # always reuse an existing connection if it matches on these connection options
+        conn_options = {:host => host, :port => port, :database => database, :username => username}
+        existing_connection = self.class.persisted_connection(conn_options)
+
+        if existing_connection.nil?
+          # create and persist a new connection
+          @connection = PG::Connection.new(
+            host,
+            port,
+            nil,
+            nil,
+            database,
+            username,
+            options['password'] || ''
+          )
+          @connection.set_notice_processor do |msg|
+            if msg =~ /^ERROR:/
+              LOG.error('psql') { msg.gsub(/\n/,'; ') }
+            else
+              LOG.info('psql') { msg.gsub(/\n/,'; ') }
+            end
           end
+          self.class.persist_connection(@connection, conn_options)
+        else
+          # reuse an existing connection
+          @connection = existing_connection
         end
       end
 
       def [](name)
-        Table.new(name, self)
+        Data.new(name, self)
       end
 
       def table_tracker_columns
@@ -69,11 +94,8 @@ module Rake
         end
       end
 
-      include StandardBooleans
-      include StandardTransactions
-
       def tracking_tables?
-        table_exists?(TABLE_TRACKER_NAME)
+        data_exists?(TABLE_TRACKER_NAME)
       end
 
       def set_up_tracking
@@ -102,17 +124,23 @@ module Rake
         )
       end
 
+      alias_method :data_mtime, :table_mtime
+
       def truncate_table table_name
         return if table_name.casecmp(TABLE_TRACKER_NAME) == 0
         execute "truncate table #{table_name}"
         track_truncate table_name
       end
+      
+      alias_method :truncate_data, :truncate_table
 
       def drop_table table_name
         execute "drop table if exists #{table_name} cascade"
         return if table_name.casecmp(TABLE_TRACKER_NAME) == 0
         track_drop table_name
       end
+
+      alias_method :drop_data, :drop_table
 
       def track_drop table_name
         execute <<-EOSQL
@@ -126,6 +154,8 @@ module Rake
       def table_exists? table_name, options = {}
         relation_exists? table_name, :table, options
       end
+
+      alias_method :data_exists?, :table_exists?
 
       def view_exists? view_name, options = {}
         relation_exists? view_name, :view, options
@@ -142,6 +172,8 @@ module Rake
           track_creation table_name, 0
         end
       end
+
+      alias_method :create_data, :create_table
 
       def create_view view_name, view_definition
         drop_view view_name
@@ -178,6 +210,9 @@ module Rake
           "#{table_name}_#{operation.to_s}"
         end
 
+        # ways to prevent data integrity problems due to the timestamp being at the beginning of the transaction
+        # 1. set transaction isolation level serializable
+        # 2. 
         def create_tracking_rules table_name
           operations_supported_by_db_rules.each do |operation|
             execute <<-EOSQL

@@ -1,15 +1,21 @@
-[![Build Status](https://travis-ci.org/shahin/tabletask.svg?branch=master)](https://travis-ci.org/shahin/tabletask)
-[![Coverage Status](https://img.shields.io/coveralls/shahin/tabletask.svg)](https://coveralls.io/r/shahin/tabletask?branch=master)
+[![Build Status](https://travis-ci.org/shahin/datatask.svg?branch=master)](https://travis-ci.org/shahin/datatask)
+[![Coverage Status](https://img.shields.io/coveralls/shahin/datatask.svg)](https://coveralls.io/r/shahin/datatask?branch=master)
 
-# TableTask
+# DataTask
 
-Provides a Rake task for managing table builds, analogous to Rake's built-in FileTask.
+DataTask provides dependency-based programming for data workflows on top of the Rake build tool. This gem provides the DataTask, analogous to Rake's built-in FileTask but extended to work with pluggable backends beyond the local filesystem.
+
+Adapters are included for:
+
+1. Sqlite3
+2. PostgreSQL
+3. Greenplum
 
 ## Installation
 
 Add this line to your application's Gemfile:
 
-    gem 'tabletask'
+    gem 'datatask'
 
 And then execute:
 
@@ -17,7 +23,7 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install tabletask
+    $ gem install datatask
 
 ## Usage
 
@@ -25,7 +31,7 @@ TODO: Write usage instructions here
 
 ## Contributing
 
-1. Fork it ( https://github.com/[my-github-username]/tabletask/fork )
+1. Fork it ( https://github.com/[my-github-username]/datatask/fork )
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)

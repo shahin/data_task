@@ -1,17 +1,17 @@
 require_relative './helper.rb'
 
 module Rake
-  module TableTask
+  module DataTask
 
-    describe Table do
+    describe Data do
 
-      test_table_name = "test"
+      test_data_name = "test"
 
-      def mtime_updated? table, operation
-        original_mtime = table.mtime
+      def mtime_updated? data, operation
+        original_mtime = data.mtime
         sleep(1)
         operation.call
-        table.mtime > original_mtime
+        data.mtime > original_mtime
       end
 
       around do |test|
@@ -23,18 +23,18 @@ module Rake
 
       it "has a modified time after creation" do
         @adapter.with_tracking do
-          @adapter.create_table test_table_name, nil, "(var1 integer)"
-          t = Table.new(test_table_name, @adapter)
+          @adapter.create_data test_data_name, nil, "(var1 integer)"
+          t = Data.new(test_data_name, @adapter)
           t.mtime.to_time.must_be :>, Time.new(0)
         end
       end
 
       it "has an updated modified time after insert" do
         @adapter.with_tracking do
-          @adapter.create_table test_table_name, nil, "(var1 integer)"
-          t = Table.new(test_table_name, @adapter)
+          @adapter.create_data test_data_name, nil, "(var1 integer)"
+          t = Data.new(test_data_name, @adapter)
           operation = lambda do
-            @adapter.execute "insert into #{test_table_name} values (1)"
+            @adapter.execute "insert into #{test_data_name} values (1)"
           end
           mtime_updated?(t, operation).must_equal true
         end
@@ -42,11 +42,11 @@ module Rake
 
       it "has an updated modified time after update" do
         @adapter.with_tracking do
-          @adapter.create_table test_table_name, nil, "(var1 integer, var2 integer)"
-          t = Table.new(test_table_name, @adapter)
-          @adapter.execute "insert into #{test_table_name} values (1, 1)"
+          @adapter.create_data test_data_name, nil, "(var1 integer, var2 integer)"
+          t = Data.new(test_data_name, @adapter)
+          @adapter.execute "insert into #{test_data_name} values (1, 1)"
           operation = lambda do 
-            @adapter.execute "update #{test_table_name} set var2 = 2 where var1 = 1"
+            @adapter.execute "update #{test_data_name} set var2 = 2 where var1 = 1"
           end
           mtime_updated?(t, operation).must_equal true
         end
@@ -54,11 +54,11 @@ module Rake
 
       it "has an updated modified time after delete" do
         @adapter.with_tracking do
-          @adapter.create_table test_table_name, nil, "(var1 integer)"
-          t = Table.new(test_table_name, @adapter)
-          @adapter.execute "insert into #{test_table_name} values (1)"
+          @adapter.create_data test_data_name, nil, "(var1 integer)"
+          t = Data.new(test_data_name, @adapter)
+          @adapter.execute "insert into #{test_data_name} values (1)"
           operation = lambda do
-            @adapter.execute "delete from #{test_table_name}"
+            @adapter.execute "delete from #{test_data_name}"
           end
           mtime_updated?(t, operation).must_equal true
         end
@@ -66,11 +66,11 @@ module Rake
 
       it "has an updated modified time after truncate" do
         @adapter.with_tracking do
-          @adapter.create_table test_table_name, nil, "(var1 integer)"
-          t = Table.new(test_table_name, @adapter)
-          @adapter.execute "insert into #{test_table_name} values (1)"
+          @adapter.create_data test_data_name, nil, "(var1 integer)"
+          t = Data.new(test_data_name, @adapter)
+          @adapter.execute "insert into #{test_data_name} values (1)"
           operation = lambda do
-            @adapter.truncate_table test_table_name
+            @adapter.truncate_data test_data_name
           end
           mtime_updated?(t, operation).must_equal true
         end

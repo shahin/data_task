@@ -1,7 +1,7 @@
 require_relative './helper.rb'
 
 module Rake
-  module TableTask
+  module DataTask
 
     describe Db do
 

@@ -1,15 +1,15 @@
 # coding: utf-8
 lib = File.expand_path('../lib', __FILE__)
 $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
-require 'table_task/version'
+require 'data_task/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "tabletask"
-  spec.version       = Rake::TableTask::VERSION
+  spec.name          = "datatask"
+  spec.version       = Rake::DataTask::VERSION
   spec.authors       = ["Shahin Saneinejad"]
   spec.email         = ["shahin.saneinejad@gmail.com"]
-  spec.summary       = %q{A Rake task for managing tables in a datastore.}
-  spec.description   = %q{Provides a Rake task for managing table builds, analogous to Rake's built-in FileTask.}
+  spec.summary       = %q{A Rake task for managing data across multiple datastores.}
+  spec.description   = %q{DataTask brings dependency-based programming to data workflows with the Rake build tool.}
   spec.homepage      = ""
   spec.license       = "MIT"
 

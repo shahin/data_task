@@ -5,21 +5,14 @@ require_relative './table_creation.rb'
 require_relative './helper.rb'
 
 module Rake
-  module TableTask
+  module DataTask
 
-    class TestRakeTableTask < Rake::TestCase
+    class TestRakeDataTask < Rake::TestCase
       include Rake
-      include TableCreation
+      include DataCreation
 
       def around(&block)
-        # connect an adapter to the configured database for testing
-        config = YAML.load_file('config/database.yml')[ENV['TABLETASK_ENV']]
-        klass = "Rake::TableTask::#{config['adapter'].capitalize}".split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
-        @adapter = klass.new(config)
-
-        # extend the adapter to enable clean tracking setup/teardown within each test
-        @adapter.extend(TrackingSetupTeardownHelper)
-
+        @adapter = get_adapter
         @adapter.with_transaction_rollback do
           yield
         end
@@ -32,101 +25,101 @@ module Rake
         @runs = Array.new
       end
 
-      def test_table_need
+      def test_data_need
         @adapter.with_tracking do
           name = "dummy"
-          table @adapter[name]
+          data @adapter[name]
           ttask = Task[name]
 
-          Table.drop(ttask.name) rescue nil
-          assert ttask.needed?, "table should be needed"
+          Data.drop(ttask.name) rescue nil
+          assert ttask.needed?, "data should be needed"
 
-          @adapter.create_table name, nil, '(var1 integer)'
+          @adapter.create_data name, nil, '(var1 integer)'
 
           assert_equal nil, ttask.prerequisites.collect{|n| Task[n].timestamp}.max
-          assert ! ttask.needed?, "table should not be needed"
+          assert ! ttask.needed?, "data should not be needed"
         end
       end
 
-      def test_table_times_new_depends_on_old
+      def test_data_times_new_depends_on_old
         @adapter.with_tracking do
-          create_timed_tables(@adapter, OLDTABLE, NEWTABLE)
+          create_timed_data(@adapter, OLDDATA, NEWDATA)
 
-          t1 = Rake.application.intern(TableTask, @adapter[NEWTABLE]).enhance([@adapter[OLDTABLE]])
-          t2 = Rake.application.intern(TableTask, @adapter[OLDTABLE])
-          assert ! t2.needed?, "Should not need to build old table"
-          assert ! t1.needed?, "Should not need to rebuild new table because of old"
+          t1 = Rake.application.intern(DataTask, @adapter[NEWDATA]).enhance([@adapter[OLDDATA]])
+          t2 = Rake.application.intern(DataTask, @adapter[OLDDATA])
+          assert ! t2.needed?, "Should not need to build old data"
+          assert ! t1.needed?, "Should not need to rebuild new data because of old"
         end
       end
 
-      def test_table_times_new_depend_on_regular_task_timestamps
+      def test_data_times_new_depend_on_regular_task_timestamps
         @adapter.with_tracking do
           load_phony
 
           name = "dummy"
           task name
 
-          create_timed_tables(@adapter, NEWTABLE)
+          create_timed_data(@adapter, NEWDATA)
 
-          t1 = Rake.application.intern(TableTask, @adapter[NEWTABLE]).enhance([name])
+          t1 = Rake.application.intern(DataTask, @adapter[NEWDATA]).enhance([name])
 
-          assert t1.needed?, "depending on non-table task uses Time.now"
+          assert t1.needed?, "depending on non-data task uses Time.now"
 
           task(name => :phony)
 
-          assert t1.needed?, "unless the non-table task has a timestamp"
+          assert t1.needed?, "unless the non-data task has a timestamp"
         end
       end
 
-      def test_table_times_old_depends_on_new
+      def test_data_times_old_depends_on_new
         @adapter.with_tracking do
-          create_timed_tables(@adapter, OLDTABLE, NEWTABLE)
+          create_timed_data(@adapter, OLDDATA, NEWDATA)
 
-          t1 = Rake.application.intern(TableTask, @adapter[OLDTABLE]).enhance([@adapter[NEWTABLE]])
-          t2 = Rake.application.intern(TableTask, @adapter[NEWTABLE])
-          assert ! t2.needed?, "Should not need to build new table"
+          t1 = Rake.application.intern(DataTask, @adapter[OLDDATA]).enhance([@adapter[NEWDATA]])
+          t2 = Rake.application.intern(DataTask, @adapter[NEWDATA])
+          assert ! t2.needed?, "Should not need to build new data"
           preq_stamp = t1.prerequisites.collect{|t| Task[t].timestamp}.max
           assert_equal t2.timestamp, preq_stamp
           assert t1.timestamp < preq_stamp, "T1 should be older"
-          assert t1.needed?, "Should need to rebuild old table because of new"
+          assert t1.needed?, "Should need to rebuild old data because of new"
         end
       end
 
-      def test_table_depends_on_task_depend_on_table
+      def test_data_depends_on_task_depend_on_data
         @adapter.with_tracking do
-          create_timed_tables(@adapter, OLDTABLE, NEWTABLE)
+          create_timed_data(@adapter, OLDDATA, NEWDATA)
 
-          table @adapter[NEWTABLE] => [:obj] do |t| @runs << t.name end
-          task :obj => [OLDTABLE] do |t| @runs << t.name end
-          table @adapter[OLDTABLE] do |t| @runs << t.name end
+          data @adapter[NEWDATA] => [:obj] do |t| @runs << t.name end
+          task :obj => [OLDDATA] do |t| @runs << t.name end
+          data @adapter[OLDDATA] do |t| @runs << t.name end
 
           Task[:obj].invoke
-          Task[NEWTABLE].invoke
-          assert @runs.include?(NEWTABLE)
+          Task[NEWDATA].invoke
+          assert @runs.include?(NEWDATA)
         end
       end
 
-      def test_existing_table_depends_on_non_existing_table
+      def test_existing_data_depends_on_non_existing_data
         @adapter.with_tracking do
           @ran = false
 
-          create_table(@adapter, OLDTABLE)
-          drop_table(@adapter, NEWTABLE)
-          table @adapter[NEWTABLE] do
+          create_data(@adapter, OLDDATA)
+          drop_data(@adapter, NEWDATA)
+          data @adapter[NEWDATA] do
             @ran = true
           end
 
-          table @adapter[OLDTABLE] => NEWTABLE
+          data @adapter[OLDDATA] => NEWDATA
 
-          Task[OLDTABLE].invoke
+          Task[OLDDATA].invoke
 
           assert @ran
         end
       end
 
-      def test_table_depends_on_new_file
+      def test_data_depends_on_new_file
         @adapter.with_tracking do
-          create_timed_tables(@adapter, OLDTABLE, NEWTABLE)
+          create_timed_data(@adapter, OLDDATA, NEWDATA)
           sleep(1)
 
           file NEWFILE do
@@ -135,16 +128,16 @@ module Rake
           Task[NEWFILE].invoke
 
           @ran = false
-          table NEWTABLE => NEWFILE do
+          data NEWDATA => NEWFILE do
             @ran = true
           end
 
-          Task[NEWTABLE].invoke
-          assert @ran, "Should have run the table task with an updated file dependency."
+          Task[NEWDATA].invoke
+          assert @ran, "Should have run the data task with an updated file dependency."
         end
       end
 
-      def test_table_depends_on_new_file
+      def test_data_depends_on_new_file
         @adapter.with_tracking do
           file NEWFILE do
             create_file(NEWFILE)
@@ -152,55 +145,55 @@ module Rake
           Task[NEWFILE].invoke
 
           sleep(1)
-          create_timed_tables(@adapter, OLDTABLE, NEWTABLE)
+          create_timed_data(@adapter, OLDDATA, NEWDATA)
 
           @ran = false
-          table @adapter[NEWTABLE] => NEWFILE do
+          data @adapter[NEWDATA] => NEWFILE do
             @ran = true
           end
 
-          Task[@adapter[NEWTABLE]].invoke
-          assert !@ran, "Should not have run the table task with an old file dependency."
+          Task[@adapter[NEWDATA]].invoke
+          assert !@ran, "Should not have run the data task with an old file dependency."
         end
       end
 
-      def test_file_depends_on_new_table
+      def test_file_depends_on_new_data
         @adapter.with_tracking do
           create_file(NEWFILE)
           sleep(1)
 
-          table @adapter[NEWTABLE] do
-            create_timed_tables(@adapter, OLDTABLE, NEWTABLE)
+          data @adapter[NEWDATA] do
+            create_timed_data(@adapter, OLDDATA, NEWDATA)
           end
-          Task[@adapter[NEWTABLE]].invoke
+          Task[@adapter[NEWDATA]].invoke
 
           @ran = false
-          file NEWFILE => @adapter[NEWTABLE] do
+          file NEWFILE => @adapter[NEWDATA] do
             @ran = true
           end
 
           Task[@adapter[NEWFILE]].invoke
-          assert @ran, "Should have run the file task with an updated table dependency."
+          assert @ran, "Should have run the file task with an updated data dependency."
         end
       end
 
-      def test_file_depends_on_old_table
+      def test_file_depends_on_old_data
         @adapter.with_tracking do
-          table @adapter[NEWTABLE] do
-            create_timed_tables(@adapter, OLDTABLE, NEWTABLE)
+          data @adapter[NEWDATA] do
+            create_timed_data(@adapter, OLDDATA, NEWDATA)
           end
-          Task[@adapter[NEWTABLE]].invoke
+          Task[@adapter[NEWDATA]].invoke
 
           sleep(1)
           create_file(NEWFILE)
 
           @ran = false
-          file NEWFILE => @adapter[NEWTABLE] do
+          file NEWFILE => @adapter[NEWDATA] do
             @ran = true
           end
 
           Task[@adapter[NEWFILE]].invoke
-          assert !@ran, "Should not have run the file task with an old table dependency."
+          assert !@ran, "Should not have run the file task with an old data dependency."
         end
       end
 

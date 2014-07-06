@@ -4,9 +4,11 @@ require_relative './sql'
 require_relative './util'
 
 module Rake
-  module TableTask
+  module DataTask
 
     class Db
+      # This is the base class for SQL-compliant relational databases. It contains utility methods
+      # that probably don't vary across databases, and it shouldn't be instantiated.
 
       LOG = Logger.new(STDOUT)
       LOG.level = Logger::WARN
