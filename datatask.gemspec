@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'data_task/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = "datatask"
+  spec.name          = "data_task"
   spec.version       = Rake::DataTask::VERSION
   spec.authors       = ["Shahin Saneinejad"]
   spec.email         = ["shahin.saneinejad@gmail.com"]
