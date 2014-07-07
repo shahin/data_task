@@ -5,11 +5,7 @@
 
 DataTask enables dependency-based programming for data workflows on top of the Rake build tool. This gem provides the DataTask, analogous to Rake's built-in FileTask but extended to work with pluggable backends beyond the local filesystem.
 
-Adapters are included for:
-
-1. SQLite3
-2. PostgreSQL
-3. Greenplum
+Adapters are included for Sqlite3, PostgreSQL, and Greenplum.
 
 ## Installation
 
@@ -27,11 +23,33 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+To write your first dependency-based data loader, connect to your database by instantiating an adapter:
+
+```
+postgres = Rake::DataTask::Postgres.new(
+  'host' => 'localhost', 
+  'port' => 5432, 
+  'database' => 'example', 
+  'username' => 'postgres'
+  )
+```
+
+Then use this adapter instance as the target for a data task:
+
+```
+desc "Load a data file into PostgreSQL for analysis."
+data postgres['raw'] => 'raw.txt' do
+  # Add loading logic here
+end
+```
+
+Rake will run this task if and only if (a) the table 'raw' is does not exist yet, or (b) the table 'raw' exists but has a timestamp earlier than the file 'raw.txt'. Since database tables now have timestamps associated with them, they can serve as targets or as dependencies in data tasks.
+
+See lib/data_task/tasks/examples.rake for a more complete example workflow.
 
 ## Contributing
 
-1. Fork it ( https://github.com/[my-github-username]/data_task/fork )
+1. Fork it ( https://github.com/shahin/data_task/fork )
 2. Create your feature branch (`git checkout -b my-new-feature`)
 3. Commit your changes (`git commit -am 'Add some feature'`)
 4. Push to the branch (`git push origin my-new-feature`)
