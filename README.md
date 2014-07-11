@@ -3,7 +3,7 @@
 
 # DataTask
 
-DataTask enables dependency-based programming for data workflows on top of the Rake build tool. This gem provides the DataTask, analogous to Rake's built-in FileTask but extended to work with pluggable backends beyond the local filesystem.
+DataTask extends Rake's dependency-based programming language to databases. This gem provides the `data` task, analogous to Rake's built-in `file` task but extended to work with pluggable backends beyond the local filesystem.
 
 Adapters are included for Sqlite3, PostgreSQL, and Greenplum.
 
@@ -23,7 +23,7 @@ Or install it yourself as:
 
 ## Usage
 
-To write your first dependency-based data loader, connect to your database by instantiating an adapter:
+To write your first data task, connect to your database by instantiating an adapter:
 
 ```
 postgres = Rake::DataTask::Postgres.new(
@@ -45,7 +45,44 @@ end
 
 Rake will run this task if and only if (a) the table 'raw' is does not exist yet, or (b) the table 'raw' exists but has a timestamp earlier than the file 'raw.txt'. Since database tables now have timestamps associated with them, they can serve as targets or as dependencies in data tasks.
 
-See lib/data_task/tasks/examples.rake for a more complete example workflow.
+Here's a runnable example Rakefile:
+
+```
+require 'rake'
+require 'data_task'
+
+# connect to the database
+postgres = Rake::DataTask::Postgres.new(
+  'host' => 'localhost', 
+  'port' => 5432, 
+  'database' => 'example', 
+  'username' => 'postgres'
+  )
+
+# mark raw.txt as a potential dependency
+file 'raw.txt'
+
+# define a loader for the postgres table 'raw', dependent on raw.txt
+desc "Load a data file into PostgreSQL for analysis."
+data postgres['raw'] => 'raw.txt' do
+  postgres.create_table 'raw', nil, '(var1 text)'
+  postgres.execute "copy raw.txt to raw"
+end
+```
+
+To run it: 
+
+1. paste the example into a file named 'Rakefile',
+2. make sure the PostgreSQL configuration matches your server,
+3. open a terminal and run the commands below:
+
+```
+$ echo "v1" > raw.txt
+$ rake 'raw'
+```
+
+The contents of raw.txt should be in your table 'raw' on PostgreSQL. Running the rake command a second time will result in no operations as long as raw.txt hasn't changed. With big data files, this can be a big time-saver.
+
 
 ## Contributing
 
