@@ -1,6 +1,8 @@
 require 'rake'
 require 'data_task/version'
 require 'data_task/data'
+require 'data_task/adapters/postgres'
+require 'data_task/adapters/sqlite'
 
 module Rake
   # #########################################################################

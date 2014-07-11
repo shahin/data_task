@@ -1,4 +1,5 @@
 require 'sqlite3'
+require_relative '../data'
 require_relative 'support/transactions'
 require_relative 'support/booleans'
 
