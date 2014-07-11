@@ -66,7 +66,7 @@ file 'raw.txt'
 desc "Load a data file into PostgreSQL for analysis."
 data postgres['raw'] => 'raw.txt' do
   postgres.create_table 'raw', nil, '(var1 text)'
-  postgres.execute "copy raw.txt to raw"
+  postgres.execute "copy raw from '#{File.join(File.dirname(__FILE__),'raw.txt')}'"
 end
 ```
 
@@ -74,7 +74,7 @@ To run it:
 
 1. paste the example into a file named 'Rakefile',
 2. make sure the PostgreSQL configuration matches your server,
-3. open a terminal and run the commands below:
+3. in the same directory as your Rakefile, open a terminal and run the commands below:
 
 ```
 $ echo "v1" > raw.txt
