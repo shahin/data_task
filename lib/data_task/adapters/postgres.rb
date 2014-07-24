@@ -1,8 +1,12 @@
-require 'pg'
-require_relative '../data'
+begin
+  require 'pg'
+rescue LoadError
+  puts "The Postgres adapter requires the pg gem, which can be installed via rubygems."
+end
 require_relative 'support/transactions'
 require_relative 'support/booleans'
 require_relative 'support/connection_persistence'
+require_relative '../data'
 
 module Rake
   module DataTask

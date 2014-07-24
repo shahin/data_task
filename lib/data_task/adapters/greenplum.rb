@@ -1,4 +1,3 @@
-require 'pg'
 require_relative 'support/transactions'
 require_relative 'support/booleans'
 require_relative './postgres'

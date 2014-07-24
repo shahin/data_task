@@ -1,7 +1,11 @@
-require 'sqlite3'
-require_relative '../data'
+begin
+  require 'sqlite3'
+rescue LoadError
+  puts "The Sqlite adapter requires the sqlite3 gem, which can be installed via rubygems."
+end
 require_relative 'support/transactions'
 require_relative 'support/booleans'
+require_relative '../data'
 
 module Rake
   module DataTask
@@ -73,7 +77,7 @@ module Rake
 
       alias_method :data_mtime, :table_mtime
 
-      def create_table table_name, data_definition, column_definitions, track_table=true
+      def create_table table_name, data_definition, column_definitions=nil, track_table=true
         drop_table table_name
         execute <<-EOSQL
           create table #{table_name} #{column_definitions}
