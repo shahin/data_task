@@ -9,7 +9,7 @@ end
 datastore :postgres => Postgres.new('postgres@localhost:5432/example') do
 
   desc "Load a data file into PostgreSQL for analysis."
-  data 'raw' => 'raw.txt' do |ds, t, args|
+  data 'raw' => 'raw.txt' do |t, args|
     ds.create_table "raw", nil, "(var1 text)"
     ds.execute "copy raw from '#{File.expand_path('raw.txt',Dir.pwd)}'"
   end
