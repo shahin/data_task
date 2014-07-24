@@ -26,9 +26,7 @@ Or install it yourself as:
 To write your first data task, connect to your database by instantiating an adapter:
 
 ```
-sqlite = Rake::DataTask::Sqlite.new(
-  'database' => 'example'
-  )
+sqlite = Rake::DataTask::Sqlite.new('database' => 'example')
 ```
 
 Then use this adapter instance as the target for a data task:
