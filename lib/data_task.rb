@@ -19,13 +19,14 @@ module Rake
       # @param [Rake::Application] app required by the parent class's constructor
       def initialize(task_name, app)
         super
-        adapter = ::Rake::DataTask::DataStore[datastore_scope.to_sym]
-        @data = ::Rake::DataTask::Data.new(task_name, adapter)
+        adapter = ::Rake::DataTask::DataStore[datastore_scope(task_name).to_sym]
+        data_name = task_name.split(':').last
+        @data = ::Rake::DataTask::Data.new(data_name, adapter)
       end
 
       # @returns [String] the innermost valid DataStore scope name for this task
-      def datastore_scope
-        @scope.reverse.find do |s|
+      def datastore_scope task_name
+        self.class.scope_name(@scope, task_name).split(':').reverse.find do |s|
           !::Rake::DataTask::DataStore[s.to_sym].nil?
         end
       end

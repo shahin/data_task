@@ -1,5 +1,6 @@
 require 'data_task'
 require 'data_task/adapters/postgres'
+require 'data_task/adapters/sqlite'
 require 'data_task/data_store'
 
 desc "Run tests"
@@ -25,15 +26,28 @@ postgres = Rake::DataTask::Postgres.new(
   'username' => 'postgres'
   )
 
-datastore :postgres, postgres do |data|
+sqlite = Rake::DataTask::Sqlite.new({ 'database' => 'tester' })
 
-  data 'raw1' do |ds|
+datastore :postgres, postgres do |ds|
+
+  data 'rawzero' do
+    ds.create_table 'rawzero', nil, '(var1 integer)'
+  end
+
+  datastore :sqlite, sqlite do |ds|
+
+    data 'raw0' => '^rawzero' do
+      ds.create_table 'raw0', nil, '(var1 integer)'
+    end
+
+  end
+
+  data 'raw1' => 'sqlite:raw0' do
     ds.create_table 'raw1', nil, '(var1 integer)'
   end
 
-  data 'raw2' => 'raw1' do
-    p = Rake::DataTask::DataStore[:postgres]
-    p.create_table 'raw2', nil, '(var1 integer)'
+  data 'sqlite:raw2' => 'raw1' do
+    ds.create_table 'raw2', nil, '(var1 integer)'
   end
 
 end
