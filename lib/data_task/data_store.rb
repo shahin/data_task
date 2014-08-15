@@ -8,7 +8,7 @@ module Rake
       name ||= generate_name
       @scope.push(name)
       ds = ::Rake::DataTask::DataStore.new(self, @scope, adapter)
-      yield(adapter)
+      yield(adapter) if block_given?
       ds
     ensure
       @scope.pop
