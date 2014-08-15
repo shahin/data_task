@@ -7,10 +7,13 @@ module Rake
       module StandardTransactions
 
         def with_transaction do_commit, &block
-          execute "begin;"
-          yield
-          close_command = do_commit ? "commit;" : "rollback;"
-          execute close_command
+          begin
+            execute "begin;"
+            yield
+          ensure
+            close_command = do_commit ? "commit;" : "rollback;"
+            execute close_command
+          end
         end
 
         def with_transaction_commit &block
