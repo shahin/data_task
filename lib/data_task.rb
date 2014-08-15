@@ -19,7 +19,11 @@ module Rake
       # @param [Rake::Application] app required by the parent class's constructor
       def initialize(task_name, app)
         super
-        adapter = ::Rake::DataTask::DataStore[datastore_scope(task_name).to_sym]
+
+        scope = datastore_scope(task_name)
+        raise "This task has no datastore scope." if scope.nil?
+
+        adapter = ::Rake::DataTask::DataStore[scope.to_sym]
         data_name = task_name.split(':').last
         @data = ::Rake::DataTask::Data.new(data_name, adapter)
       end
