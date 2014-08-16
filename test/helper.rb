@@ -3,9 +3,7 @@ require 'coveralls'
 Coveralls.wear!
 
 require 'minitest/autorun'
-require 'minitest/around/spec'
 require 'minitest/around/unit'
-require 'minitest-spec-context'
 
 require 'logger'
 
