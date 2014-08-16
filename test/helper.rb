@@ -16,22 +16,26 @@ require 'data_task'
 require 'data_task/adapters/sqlite'
 require 'data_task/adapters/postgres'
 
-def get_adapter
-  # connect an adapter to the configured database for testing
-  config = YAML.load_file('test/config/database.yml')[ENV['DATATASK_ENV'] || 'sqlite_test']
-  klass = "Rake::DataTask::#{config['adapter'].capitalize}".split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
-  adapter = klass.new(config)
+module TestHelper
 
-  # extend the adapter to enable clean tracking setup/teardown within each test
-  adapter.extend(TrackingSetupTeardownHelper)
+  module TrackingSetupTeardownHelper
+    def with_tracking &ops
+      set_up_tracking
+      ops.call
+      tear_down_tracking
+    end
+  end
 
-  adapter
-end
+  def self.get_adapter_to_test_db
+    # connect an adapter to the configured database for testing
+    config = YAML.load_file('test/config/database.yml')[ENV['DATATASK_ENV'] || 'sqlite_test']
+    klass = "Rake::DataTask::#{config['adapter'].capitalize}".split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
+    adapter = klass.new(config)
 
-module TrackingSetupTeardownHelper
-  def with_tracking &ops
-    set_up_tracking
-    ops.call
-    tear_down_tracking
+    # extend the adapter to enable clean tracking setup/teardown within each test
+    adapter.extend(TrackingSetupTeardownHelper)
+
+    adapter
   end
 end
+

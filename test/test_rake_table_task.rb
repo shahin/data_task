@@ -12,11 +12,12 @@ module Rake
       include DataCreation
 
       def around(&block)
-        @adapter = get_adapter
+        @adapter = TestHelper.get_adapter_to_test_db
+        @adapter_scope = 'test'
+        DataStore[@adapter_scope.to_sym] = @adapter
         @adapter.with_transaction_rollback do
           yield
         end
-        DataSource[:test] = @adapter
       end
 
       def setup
@@ -29,10 +30,11 @@ module Rake
       def test_data_need
         @adapter.with_tracking do
           name = "dummy"
-          data @adapter[name]
-          ttask = Task[name]
+          scoped_name = [@adapter_scope, name].join(':')
+          data scoped_name
+          ttask = Task[scoped_name]
 
-          Data.drop(ttask.name) rescue nil
+          @adapter.drop(name) rescue nil
           assert ttask.needed?, "data should be needed"
 
           @adapter.create_data name, nil, '(var1 integer)'
@@ -45,12 +47,13 @@ module Rake
       def test_data_times_new_depends_on_old
         @adapter.with_tracking do
           create_timed_data(@adapter, OLDDATA, NEWDATA)
+          scoped_olddata = "#{@adapter_scope}:#{OLDDATA}"
+          scoped_newdata = "#{@adapter_scope}:#{NEWDATA}"
 
-          t1 = Rake.application.intern(DataTask, @adapter[NEWDATA])
-          #t1 = Rake.application.intern(DataTask, @adapter[NEWDATA]).enhance([@adapter[OLDDATA]])
-          #t2 = Rake.application.intern(DataTask, @adapter[OLDDATA])
-          #assert ! t2.needed?, "Should not need to build old data"
-          #assert ! t1.needed?, "Should not need to rebuild new data because of old"
+          t1 = Rake.application.intern(DataTask, scoped_newdata).enhance([scoped_olddata])
+          t2 = Rake.application.intern(DataTask, scoped_olddata)
+          assert ! t2.needed?, "Should not need to build old data"
+          assert ! t1.needed?, "Should not need to rebuild new data because of old"
         end
       end
 
@@ -62,8 +65,9 @@ module Rake
           task name
 
           create_timed_data(@adapter, NEWDATA)
+          scoped_newdata = "#{@adapter_scope}:#{NEWDATA}"
 
-          t1 = Rake.application.intern(DataTask, @adapter[NEWDATA]).enhance([name])
+          t1 = Rake.application.intern(DataTask, scoped_newdata).enhance([name])
 
           assert t1.needed?, "depending on non-data task uses Time.now"
 
@@ -76,9 +80,11 @@ module Rake
       def test_data_times_old_depends_on_new
         @adapter.with_tracking do
           create_timed_data(@adapter, OLDDATA, NEWDATA)
+          scoped_olddata = "#{@adapter_scope}:#{OLDDATA}"
+          scoped_newdata = "#{@adapter_scope}:#{NEWDATA}"
 
-          t1 = Rake.application.intern(DataTask, @adapter[OLDDATA]).enhance([@adapter[NEWDATA]])
-          t2 = Rake.application.intern(DataTask, @adapter[NEWDATA])
+          t1 = Rake.application.intern(DataTask, scoped_olddata).enhance([scoped_newdata])
+          t2 = Rake.application.intern(DataTask, scoped_newdata)
           assert ! t2.needed?, "Should not need to build new data"
           preq_stamp = t1.prerequisites.collect{|t| Task[t].timestamp}.max
           assert_equal t2.timestamp, preq_stamp
@@ -90,14 +96,16 @@ module Rake
       def test_data_depends_on_task_depend_on_data
         @adapter.with_tracking do
           create_timed_data(@adapter, OLDDATA, NEWDATA)
+          scoped_olddata = "#{@adapter_scope}:#{OLDDATA}"
+          scoped_newdata = "#{@adapter_scope}:#{NEWDATA}"
 
-          data @adapter[NEWDATA] => [:obj] do |t| @runs << t.name end
-          task :obj => [OLDDATA] do |t| @runs << t.name end
-          data @adapter[OLDDATA] do |t| @runs << t.name end
+          data scoped_newdata => [:obj] do |t| @runs << t.name end
+          task :obj => [scoped_olddata] do |t| @runs << t.name end
+          data scoped_olddata do |t| @runs << t.name end
 
           Task[:obj].invoke
-          Task[NEWDATA].invoke
-          assert @runs.include?(NEWDATA)
+          Task[scoped_newdata].invoke
+          assert @runs.include?(scoped_newdata)
         end
       end
 
@@ -107,13 +115,16 @@ module Rake
 
           create_data(@adapter, OLDDATA)
           drop_data(@adapter, NEWDATA)
-          data @adapter[NEWDATA] do
+          scoped_olddata = "#{@adapter_scope}:#{OLDDATA}"
+          scoped_newdata = "#{@adapter_scope}:#{NEWDATA}"
+
+          data scoped_newdata do
             @ran = true
           end
 
-          data @adapter[OLDDATA] => NEWDATA
+          data scoped_olddata => scoped_newdata
 
-          Task[OLDDATA].invoke
+          Task[scoped_olddata].invoke
 
           assert @ran
         end
@@ -122,6 +133,7 @@ module Rake
       def test_data_depends_on_new_file
         @adapter.with_tracking do
           create_timed_data(@adapter, OLDDATA, NEWDATA)
+          scoped_newdata = "#{@adapter_scope}:#{NEWDATA}"
           sleep(1)
 
           file NEWFILE do
@@ -130,11 +142,11 @@ module Rake
           Task[NEWFILE].invoke
 
           @ran = false
-          data NEWDATA => NEWFILE do
+          data scoped_newdata => NEWFILE do
             @ran = true
           end
 
-          Task[NEWDATA].invoke
+          Task[scoped_newdata].invoke
           assert @ran, "Should have run the data task with an updated file dependency."
         end
       end
@@ -148,13 +160,15 @@ module Rake
 
           sleep(1)
           create_timed_data(@adapter, OLDDATA, NEWDATA)
+          scoped_olddata = "#{@adapter_scope}:#{OLDDATA}"
+          scoped_newdata = "#{@adapter_scope}:#{NEWDATA}"
 
           @ran = false
-          data @adapter[NEWDATA] => NEWFILE do
+          data scoped_newdata => NEWFILE do
             @ran = true
           end
 
-          Task[@adapter[NEWDATA]].invoke
+          Task[scoped_newdata].invoke
           assert !@ran, "Should not have run the data task with an old file dependency."
         end
       end
@@ -164,37 +178,43 @@ module Rake
           create_file(NEWFILE)
           sleep(1)
 
-          data @adapter[NEWDATA] do
+          scoped_olddata = "#{@adapter_scope}:#{OLDDATA}"
+          scoped_newdata = "#{@adapter_scope}:#{NEWDATA}"
+
+          data scoped_newdata do
             create_timed_data(@adapter, OLDDATA, NEWDATA)
           end
-          Task[@adapter[NEWDATA]].invoke
+          Task[scoped_newdata].invoke
 
           @ran = false
-          file NEWFILE => @adapter[NEWDATA] do
+          file NEWFILE => scoped_newdata do
             @ran = true
           end
 
-          Task[@adapter[NEWFILE]].invoke
+          Task[NEWFILE].invoke
           assert @ran, "Should have run the file task with an updated data dependency."
         end
       end
 
       def test_file_depends_on_old_data
         @adapter.with_tracking do
-          data @adapter[NEWDATA] do
+          scoped_olddata = "#{@adapter_scope}:#{OLDDATA}"
+          scoped_newdata = "#{@adapter_scope}:#{NEWDATA}"
+
+          data scoped_newdata do
             create_timed_data(@adapter, OLDDATA, NEWDATA)
           end
-          Task[@adapter[NEWDATA]].invoke
+          Task[scoped_newdata].invoke
 
           sleep(1)
           create_file(NEWFILE)
 
           @ran = false
-          file NEWFILE => @adapter[NEWDATA] do
+          file NEWFILE => scoped_newdata do
             @ran = true
           end
 
-          Task[@adapter[NEWFILE]].invoke
+          Task[NEWFILE].invoke
           assert !@ran, "Should not have run the file task with an old data dependency."
         end
       end

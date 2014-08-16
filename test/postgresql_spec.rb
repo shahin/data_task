@@ -19,7 +19,7 @@ module Rake
       test_view_wrong_schema = "#{wrong_schema}.#{test_view}"
 
       around do |test|
-        @adapter = get_adapter
+        @adapter = TestHelper.get_adapter_to_test_db
         if !@adapter.kind_of?(Rake::DataTask::Postgres)
           skip("Using adapter #{@adapter}, so skipping #{self.class} tests.")
         end

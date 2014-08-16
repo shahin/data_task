@@ -15,7 +15,7 @@ module Rake
       end
 
       around do |test|
-        @adapter = get_adapter
+        @adapter = TestHelper.get_adapter_to_test_db
         @adapter.with_transaction_rollback do
           test.call
         end
