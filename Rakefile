@@ -19,24 +19,15 @@ namespace :data_task do
 
 end
 
-postgres = Rake::DataTask::Postgres.new(
-  'host' => 'localhost', 
-  'port' => 5432, 
-  'database' => 'example', 
-  'username' => 'postgres'
-  )
-
-sqlite = Rake::DataTask::Sqlite.new({ 'database' => 'tester' })
-
-datastore :postgres, postgres do |ds|
+datastore :postgres, 'postgres://postgres@localhost:5432/example' do |ds|
 
   data 'rawzero' do
     ds.create_table 'rawzero', nil, '(var1 integer)'
   end
 
-  datastore :sqlite, sqlite do |ds|
+  datastore :sqlite, 'sqlite://example' do |ds|
 
-    data 'raw0' => '^rawzero' do
+    data 'raw0' => 'postgres:rawzero' do
       ds.create_table 'raw0', nil, '(var1 integer)'
     end
 
@@ -46,8 +37,24 @@ datastore :postgres, postgres do |ds|
     ds.create_table 'raw1', nil, '(var1 integer)'
   end
 
-  data 'sqlite:raw2' => 'raw1' do
-    ds.create_table 'raw2', nil, '(var1 integer)'
+  data 'sqlite:raw2' => 'postgres:raw1' do
+    sqlite.create_table 'raw2', nil, '(var1 integer)'
   end
 
 end
+
+
+# both approaches (datastore vs adapter hash) have problems.
+#
+# adapter hash pro:
+# - simple, readable definition of where a table is and what it's called
+# adapter hash con:
+# - can't have two tables with the same name in different sources
+#
+# datastore namespace pro:
+# - can have two tables with the same name in different stores
+# datastore namespace con:
+# - scope resolution might be confusing, since we mix datastores and namespaces
+#
+# hybrid:
+# - make adapter[] 

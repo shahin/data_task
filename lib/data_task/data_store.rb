@@ -57,9 +57,17 @@ end
 #   end
 #   data_blob = ds['blob'] # find 'blob' in the given datastore.
 #
-def datastore(name, adapter, &block)
+def datastore(name, definition, &block)
   name = name.to_s if name.kind_of?(Symbol)
   name = name.to_str if name.respond_to?(:to_str)
+
+  if definition.kind_of?(Rake::DataTask::Db)
+    adapter = definition
+  else
+    adapter_klass, connection_options = connection_options_from_str(definition.to_s)
+    adapter = adapter_klass.new(connection_options)
+  end
+
   Rake::DataTask::DataStore[name.to_sym] = adapter
   Rake.application.in_datastore(name, adapter, &block)
 end

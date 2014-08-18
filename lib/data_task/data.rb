@@ -9,6 +9,8 @@ module Rake
       attr_accessor :name
       attr_accessor :adapter
 
+      # @param [String] data_name an identifier for a data collection understood by the adapter
+      # @param [Object] adapter that knows how to find and manipulate the data
       def initialize data_name, adapter
         @name = data_name
         @adapter = adapter

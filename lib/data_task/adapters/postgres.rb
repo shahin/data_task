@@ -11,6 +11,16 @@ module Rake
       @connections = {}
       extend ConnectionPersistence
 
+      def self.connection_options_from_uri uri
+        {
+          'host' => uri.host,
+          'port' => uri.port,
+          'username' => uri.user,
+          'password' => uri.password,
+          'database' => uri.path[1..-1]
+        }
+      end
+
       include StandardBooleans
       include StandardTransactions
 

@@ -6,7 +6,7 @@ file 'raw.txt' do
   File.open('raw.txt', 'w') { |file| file.write("v1") }
 end
 
-datastore :postgres => Postgres.new('postgres@localhost:5432/example') do
+datastore :postgres, Postgres.new('postgres@localhost:5432/example') do
 
   desc "Load a data file into PostgreSQL for analysis."
   data 'raw' => 'raw.txt' do |t, args|
@@ -22,7 +22,7 @@ datastore :postgres => Postgres.new('postgres@localhost:5432/example') do
 
 end
 
-datastore :sqlite => Sqlite.new('./example') do
+datastore :sqlite, Sqlite.new('./example') do
 
   desc "Archive analysis results in SQLite."
   data 'analyzed_archive' => 'postgres:analyzed' do |ds, t, args|
