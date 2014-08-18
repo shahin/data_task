@@ -1,7 +1,7 @@
 require File.expand_path(
   File.join(Gem::Specification.find_by_name('rake').gem_dir,'test/helper.rb'), __FILE__)
 
-require_relative './helper.rb'
+require_relative '../helper.rb'
 require 'data_task/adapters/postgres'
 
 module Rake

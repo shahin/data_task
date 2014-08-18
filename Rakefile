@@ -13,7 +13,7 @@ namespace :data_task do
 
   Rake::TestTask.new do |t|
     t.libs << "spec"
-    t.test_files = FileList['test/**/*_spec.rb', 'test/test_*.rb']
+    t.test_files = FileList['test/**/*_test.rb']
     t.verbose
   end
 
