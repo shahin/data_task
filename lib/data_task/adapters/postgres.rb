@@ -76,11 +76,7 @@ module Rake
         end
 
         # set up trackig if it isn't set up already
-        set_up_tracking if !tracking_tables?
-      end
-
-      def [](name)
-        Data.new(name, self)
+        set_up_tracking if !tracking_operations?
       end
 
       def table_tracker_columns
@@ -126,7 +122,7 @@ module Rake
         end
       end
 
-      def tracking_tables?
+      def tracking_operations?
         data_exists?(TABLE_TRACKER_NAME)
       end
 

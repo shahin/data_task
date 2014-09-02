@@ -25,7 +25,7 @@ module Rake
         @connection = SQLite3::Database.new(options['database'] || 'temp')
 
         # set up trackig if it isn't set up already
-        set_up_tracking if !tracking_tables?
+        set_up_tracking if !tracking_operations?
       end
 
       def execute sql
@@ -41,7 +41,7 @@ module Rake
       include NumericBooleans
       include StandardTransactions
 
-      def tracking_tables?
+      def tracking_operations?
         table_exists?(TABLE_TRACKER_NAME)
       end
 
@@ -173,11 +173,6 @@ module Rake
           :by_app => [:truncate, :create]
         }
       end
-
-      def [](name)
-        Data.new(name, self)
-      end
-
 
 
       private

@@ -237,18 +237,18 @@ module Rake
         end
       end
 
-      def test_says_it_is_tracking_tables_after_tracking_is_set_up_in_the_right_schema
+      def test_says_it_is_tracking_operations_after_tracking_is_set_up_in_the_right_schema
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.tear_down_tracking
           @adapter.set_up_tracking
-          assert_equal (@adapter.tracking_tables?), true
+          assert_equal (@adapter.tracking_operations?), true
         end
       end
 
-      def test_says_it_is_not_tracking_tables_after_tracking_is_torn_down_in_the_right_schema
+      def test_says_it_is_not_tracking_operations_after_tracking_is_torn_down_in_the_right_schema
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.tear_down_tracking
-          assert_equal (@adapter.tracking_tables?), false
+          assert_equal (@adapter.tracking_operations?), false
         end
       end
 
