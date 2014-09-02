@@ -12,6 +12,10 @@ module Rake
 
     class Sqlite < Db
 
+      def self.connection_options_from_uri uri
+        { :database => uri.host }
+      end
+
       # Connect to an Sqlite database.
       #
       # @param [Hash] options the connection parameters

@@ -1,8 +1,7 @@
 require 'rake'
 require 'data_task/version'
 require 'data_task/data'
-require 'data_task/adapters/postgres'
-require 'data_task/adapters/sqlite'
+require 'data_task/data_store'
 
 module Rake
   # #########################################################################
@@ -17,10 +16,23 @@ module Rake
       # Instantiate a new DataTask.
       #
       # @param [Data] data the Data object that keeps track of existence and modification
-      # @param [Rake::Application] app required by the parent class's constructor 
-      def initialize(data, app)
+      # @param [Rake::Application] app required by the parent class's constructor
+      def initialize(task_name, app)
         super
-        @data = data
+
+        scope = datastore_scope(task_name)
+        raise "This task has no datastore scope." if scope.nil?
+
+        adapter = DataStore[scope.to_sym]
+        data_name = task_name.split(':').last
+        @data = Data.new(data_name, adapter)
+      end
+
+      # @returns [String] the innermost valid DataStore scope name for this task
+      def datastore_scope task_name
+        self.class.scope_name(@scope, task_name).split(':').reverse.find do |s|
+          !DataStore[s.to_sym].nil?
+        end
       end
 
       # Is this table task needed? Yes if it doesn't exist, or if its time stamp
@@ -56,10 +68,12 @@ module Rake
       # Task class methods.
       #
       class << self
-        # Apply the scope to the task name according to the rules for this kind
-        # of task. Table based tasks ignore the scope when creating the name.
-        def scope_name(scope, task_name)
-          task_name
+        # Step up through scopes and return the first DataStore scope we find, or nil.
+        def self.datastore_in_scope task_name
+          datastore_names = task_name.split(':')[0..-2].select do |scope|
+            DataStore.has_key?(scope.to_sym)
+          end
+          DataStore[datastore_names.last.to_sym]
         end
       end
 
