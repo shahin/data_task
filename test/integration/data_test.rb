@@ -22,14 +22,18 @@ module Rake
 
       def around(&block)
         @adapter = TestHelper.get_adapter_to_test_db
-        @adapter.with_transaction_rollback do
+        if @adapter.respond_to? :with_transaction_rollback
+          @adapter.with_transaction_rollback do
+            yield
+          end
+        else
           yield
         end
       end
 
       def test_has_a_modified_time_after_creation
         @adapter.with_tracking do
-          @adapter.create_data @test_data_name, nil, "(var1 integer)"
+          @adapter.create_test_data @test_data_name, nil, "(var1 integer)"
           t = Data.new(@test_data_name, @adapter)
           assert_operator t.mtime.to_time, :>, Time.new(0)
         end
@@ -37,7 +41,7 @@ module Rake
 
       def test_has_an_updated_modified_time_after_insert
         @adapter.with_tracking do
-          @adapter.create_data @test_data_name, nil, "(var1 integer)"
+          @adapter.create_test_data @test_data_name, nil, "(var1 integer)"
           t = Data.new(@test_data_name, @adapter)
           operation = lambda do
             @adapter.execute "insert into #{@test_data_name} values (1)"
@@ -48,7 +52,7 @@ module Rake
 
       def test_has_an_updated_modified_time_after_update
         @adapter.with_tracking do
-          @adapter.create_data @test_data_name, nil, "(var1 integer, var2 integer)"
+          @adapter.create_test_data @test_data_name, nil, "(var1 integer, var2 integer)"
           t = Data.new(@test_data_name, @adapter)
           @adapter.execute "insert into #{@test_data_name} values (1, 1)"
           operation = lambda do 
@@ -60,7 +64,7 @@ module Rake
 
       def test_has_an_updated_modified_time_after_delete
         @adapter.with_tracking do
-          @adapter.create_data @test_data_name, nil, "(var1 integer)"
+          @adapter.create_test_data @test_data_name, nil, "(var1 integer)"
           t = Data.new(@test_data_name, @adapter)
           @adapter.execute "insert into #{@test_data_name} values (1)"
           operation = lambda do
@@ -72,7 +76,7 @@ module Rake
 
       def test_has_an_updated_modified_time_after_truncate
         @adapter.with_tracking do
-          @adapter.create_data @test_data_name, nil, "(var1 integer)"
+          @adapter.create_test_data @test_data_name, nil, "(var1 integer)"
           t = Data.new(@test_data_name, @adapter)
           @adapter.execute "insert into #{@test_data_name} values (1)"
           operation = lambda do

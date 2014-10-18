@@ -8,3 +8,6 @@ postgres_test:
   host: localhost
   port: 5432
   username: postgres
+
+hdfs_test:
+  adapter: hdfs

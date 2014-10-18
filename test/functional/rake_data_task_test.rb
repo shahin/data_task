@@ -14,7 +14,11 @@ module Rake
         @adapter = TestHelper.get_adapter_to_test_db
         @adapter_scope = 'test'
         DataStore[@adapter_scope.to_sym] = @adapter
-        @adapter.with_transaction_rollback do
+        if @adapter.respond_to? :with_transaction_rollback
+          @adapter.with_transaction_rollback do
+            yield
+          end
+        else
           yield
         end
       end
@@ -36,7 +40,7 @@ module Rake
           @adapter.drop(name) rescue nil
           assert ttask.needed?, "data should be needed"
 
-          @adapter.create_data name, nil, '(var1 integer)'
+          @adapter.create_test_data name, nil, '(var1 integer)'
 
           assert_equal nil, ttask.prerequisites.collect{|n| Task[n].timestamp}.max
           assert ! ttask.needed?, "data should not be needed"

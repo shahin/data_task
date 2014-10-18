@@ -25,14 +25,29 @@ module TestHelper
     end
   end
 
+  module RdbmsTestHelper
+    def create_test_data name, data=nil, columns='(var1 integer, var2 integer)'
+      create_table name, data, columns
+    end
+  end
+
+  module FilesystemTestHelper
+    def create_test_data name, data=nil, columns=nil
+      create_file name
+    end
+  end
+
   def self.get_adapter_to_test_db
     # connect an adapter to the configured database for testing
     config = YAML.load_file('test/config/database.yml')[ENV['DATATASK_ENV'] || 'sqlite_test']
     klass = "Rake::DataTask::#{config['adapter'].capitalize}".split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
     adapter = klass.new(config)
 
-    # extend the adapter to enable clean tracking setup/teardown within each test
+    # extend the adapter instance to enable clean tracking setup/teardown within each test
     adapter.extend(TrackingSetupTeardownHelper)
+
+    adapter.extend(RdbmsTestHelper) if adapter.kind_of? Rake::DataTask::Db
+    #adapter.extend(FilesystemTestHelper) if adapter.kind_of? Rake::DataTask::Hdfs
 
     adapter
   end
@@ -63,7 +78,7 @@ module Rake
       end
 
       def create_data(adapter, name)
-        adapter.create_data name, nil, '(var1 integer, var2 integer)' unless adapter.data_exists?(name)
+        adapter.create_test_data(name) unless adapter.data_exists?(name)
         adapter.data_mtime(name)
       end
 

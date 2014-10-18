@@ -222,8 +222,7 @@ module Rake
           track_creation table_name, 0
         end
       end
-
-      alias_method :create_data, :create_table
+      private :create_table
 
       def create_view view_name, view_definition
         drop_view view_name

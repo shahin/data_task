@@ -10,7 +10,11 @@ module Rake
 
       def around(&block)
         @adapter = TestHelper.get_adapter_to_test_db
-        @adapter.with_transaction_rollback do
+        if @adapter.respond_to? :with_transaction_rollback
+          @adapter.with_transaction_rollback do
+            yield
+          end
+        else
           yield
         end
       end
