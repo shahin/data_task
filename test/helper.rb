@@ -14,6 +14,7 @@ require 'data_task'
 
 require 'data_task/adapters/sqlite'
 require 'data_task/adapters/postgres'
+require 'data_task/adapters/hdfs'
 
 module TestHelper
 
@@ -26,14 +27,16 @@ module TestHelper
   end
 
   module RdbmsTestHelper
-    def create_test_data name, data=nil, columns='(var1 integer, var2 integer)'
-      create_table name, data, columns
+    def create_test_data name, options={}
+      options = { :data => nil, :columns => '(var1 integer, var2 integer)' }.merge(options)
+      create_table name, options[:data], options[:columns]
     end
   end
 
   module FilesystemTestHelper
-    def create_test_data name, data=nil, columns=nil
-      create_file name
+    def create_test_data name, options={}
+      options = { :data => nil }.merge(options)
+      create_file name, options[:data]
     end
   end
 
@@ -47,7 +50,7 @@ module TestHelper
     adapter.extend(TrackingSetupTeardownHelper)
 
     adapter.extend(RdbmsTestHelper) if adapter.kind_of? Rake::DataTask::Db
-    #adapter.extend(FilesystemTestHelper) if adapter.kind_of? Rake::DataTask::Hdfs
+    adapter.extend(FilesystemTestHelper) if adapter.kind_of? Rake::DataTask::Hdfs
 
     adapter
   end

@@ -94,7 +94,7 @@ module Rake
       def test_creates_a_table_in_the_right_schema_when_called_to
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.with_tracking do
-            @adapter.create_test_data @test_table_right_schema, nil, '(var1 text)'
+            @adapter.create_test_data @test_table_right_schema, data: nil, columns: '(var1 text)'
             assert_equal @adapter.table_exists?(@test_table_right_schema), true
           end
         end
@@ -141,7 +141,7 @@ module Rake
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.with_tracking do
 
-            @adapter.create_test_data @test_table_right_schema, nil, '(var1 integer)'
+            @adapter.create_test_data @test_table_right_schema, data: nil, columns: '(var1 integer)'
             tracked_create = Sql.get_single_int(
               @adapter.execute <<-EOSQL
                 select 1 from #{@right_schema}.#{Db::TABLE_TRACKER_NAME} 
@@ -161,7 +161,7 @@ module Rake
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.with_tracking do
 
-            @adapter.create_test_data @test_table_right_schema, nil, '(var1 text)'
+            @adapter.create_test_data @test_table_right_schema, data: nil, columns: '(var1 text)'
             @adapter.drop_table @test_table_right_schema
             still_tracking_table = Sql.get_single_int(
               @adapter.execute <<-EOSQL
@@ -181,7 +181,7 @@ module Rake
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.with_tracking do
 
-            @adapter.create_test_data @test_table_right_schema, nil, '(var1 text)'
+            @adapter.create_test_data @test_table_right_schema, data: nil, columns: '(var1 text)'
             @adapter.execute "insert into #{@test_table_right_schema} values ('a')"
             tracked_insert = Sql.get_single_int(
               @adapter.execute <<-EOSQL
@@ -202,7 +202,7 @@ module Rake
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.with_tracking do
 
-            @adapter.create_test_data @test_table_right_schema, nil, '(var1 text, var2 text)'
+            @adapter.create_test_data @test_table_right_schema, data: nil, columns: '(var1 text, var2 text)'
             @adapter.execute "insert into #{@test_table_right_schema} values ('a', 'a')"
             @adapter.execute "update #{@test_table_right_schema} set var2 = 'b' where var1 = 'a'"
 
@@ -225,7 +225,7 @@ module Rake
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.with_tracking do
 
-            @adapter.create_test_data @test_table_right_schema, nil, '(var1 text)'
+            @adapter.create_test_data @test_table_right_schema, data: nil, columns: '(var1 text)'
             @adapter.truncate_table @test_table_right_schema
             tracked_truncate = Sql.get_single_int(
               @adapter.execute <<-EOSQL
