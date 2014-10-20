@@ -6,16 +6,13 @@ require_relative '../helper.rb'
 module Rake
   module DataTask
 
-    class SqlTest < Rake::TestCase
+    class SqlTest < Minitest::Test
 
-      def around(&block)
-        @adapter = TestHelper.get_adapter_to_test_db
-        if @adapter.respond_to? :with_transaction_rollback
-          @adapter.with_transaction_rollback do
-            yield
-          end
-        else
-          yield
+      include ::TestHelper::SingleAdapterTest
+
+      def before_setup
+        if !@adapter.kind_of?(Rake::DataTask::Db)
+          skip("Using adapter #{@adapter}, so skipping #{self.class} tests.")
         end
       end
 

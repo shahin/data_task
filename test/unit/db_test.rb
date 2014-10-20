@@ -8,27 +8,17 @@ require 'data_task/adapters/postgres'
 module Rake
   module DataTask
 
-    class DbTest < Rake::TestCase
+    class DbTest < Minitest::Test
+
+      include ::TestHelper::SingleAdapterTest
 
       def initialize *args
         super
-
         @test_table = "test_table"
         @test_view = "test_view"
       end
 
-      def around(&block)
-        @adapter = TestHelper.get_adapter_to_test_db
-        if @adapter.respond_to? :with_transaction_rollback
-          @adapter.with_transaction_rollback do
-            yield
-          end
-        else
-          yield
-        end
-      end
-
-      def setup
+      def before_setup
         super
         if !@adapter.kind_of?(Rake::DataTask::Db)
           skip("Using adapter #{@adapter}, so skipping #{self.class} tests.")

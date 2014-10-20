@@ -7,8 +7,9 @@ require 'data_task/adapters/postgres'
 module Rake
   module DataTask
 
-    class PostgresTest < Rake::TestCase
-      include Rake
+    class PostgresTest < Minitest::Test
+
+      include ::TestHelper::SingleAdapterTest
 
       def initialize *args
         super
@@ -26,29 +27,26 @@ module Rake
         @test_view_wrong_schema = "#{@wrong_schema}.#{@test_view}"
       end
 
-      def setup
-        super
-
+      def before_setup
         if !@adapter.kind_of?(Rake::DataTask::Postgres)
           skip("Using adapter #{@adapter}, so skipping #{self.class} tests.")
         end
+      end
 
+      def setup
+        super
         @adapter.execute <<-EOSQL
           create schema #{@right_schema};
           create schema #{@wrong_schema};
         EOSQL
       end
 
-      def around(&block)
-        @adapter = TestHelper.get_adapter_to_test_db
-
-        if @adapter.respond_to? :with_transaction_rollback
-          @adapter.with_transaction_rollback do
-            yield
-          end
-        else
-          yield
-        end
+      def teardown
+        super
+        @adapter.execute <<-EOSQL
+          drop schema #{@right_schema} cascade;
+          drop schema #{@wrong_schema} cascade;
+        EOSQL
       end
 
       def test_returns_the_current_user_name_when_called_to

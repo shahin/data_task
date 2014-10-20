@@ -10,17 +10,12 @@ module Rake
       include Rake
       include DataCreation
 
-      def around(&block)
-        @adapter = TestHelper.get_adapter_to_test_db
+      include ::TestHelper::SingleAdapterTest
+
+      def initialize *args
+        super
         @adapter_scope = 'test'
         DataStore[@adapter_scope.to_sym] = @adapter
-        if @adapter.respond_to? :with_transaction_rollback
-          @adapter.with_transaction_rollback do
-            yield
-          end
-        else
-          yield
-        end
       end
 
       def setup
@@ -40,7 +35,7 @@ module Rake
           @adapter.drop(name) rescue nil
           assert ttask.needed?, "data should be needed"
 
-          @adapter.create_test_data name, nil, '(var1 integer)'
+          @adapter.create_test_data name, columns: '(var1 integer)'
 
           assert_equal nil, ttask.prerequisites.collect{|n| Task[n].timestamp}.max
           assert ! ttask.needed?, "data should not be needed"
@@ -158,10 +153,10 @@ module Rake
         @adapter.with_tracking do
           file NEWFILE do
             create_file(NEWFILE)
+            sleep(2)
           end
           Task[NEWFILE].invoke
 
-          sleep(1)
           create_timed_data(@adapter, OLDDATA, NEWDATA)
           scoped_olddata = "#{@adapter_scope}:#{OLDDATA}"
           scoped_newdata = "#{@adapter_scope}:#{NEWDATA}"

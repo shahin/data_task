@@ -158,6 +158,9 @@ module Rake
         schema_name, table_name = parse_schema_and_table_name(qualified_table_name)
         schema_name = first_schema_for(table_name) if schema_name.nil?
 
+        # checking the mtime of a table that does not exist should return nil
+        return nil if !table_exists?(table_name) || schema_name.nil?
+
         with_search_path(schema_name) do
           Sql.get_single_time(
             execute <<-EOSQL

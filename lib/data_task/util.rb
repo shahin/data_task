@@ -5,6 +5,12 @@ class Array
   end
 end
 
+class String
+  def constantize
+    klass = self.split('::').inject(Object) {|memo, name| memo = memo.const_get(name); memo}
+    klass
+  end
+end
 
 # @returns [klass, Hash] the adapter klass specified by the URI scheme and the connection 
 # options in the URI
