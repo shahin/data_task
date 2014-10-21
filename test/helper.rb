@@ -17,8 +17,6 @@ require 'data_task/adapters/sqlite'
 require 'data_task/adapters/postgres'
 require 'data_task/adapters/hdfs'
 
-require_relative 'util'
-
 module TestHelper
 
   # To extend an adapter with a convenience method to ensure clean tracking state
