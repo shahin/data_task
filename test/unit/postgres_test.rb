@@ -7,8 +7,9 @@ require 'data_task/adapters/postgres'
 module Rake
   module DataTask
 
-    class PostgresTest < Rake::TestCase
-      include Rake
+    class PostgresTest < Minitest::Test
+
+      include ::TestHelper::SingleAdapterTest
 
       def initialize *args
         super
@@ -26,23 +27,25 @@ module Rake
         @test_view_wrong_schema = "#{@wrong_schema}.#{@test_view}"
       end
 
-      def around(&block)
-        @adapter = TestHelper.get_adapter_to_test_db
-        @adapter.with_transaction_rollback do
-          yield
+      def before_setup
+        if !@adapter.kind_of?(Rake::DataTask::Postgres)
+          skip("Using adapter #{@adapter}, so skipping #{self.class} tests.")
         end
       end
 
       def setup
         super
-
-        if !@adapter.kind_of?(Rake::DataTask::Postgres)
-          skip("Using adapter #{@adapter}, so skipping #{self.class} tests.")
-        end
-
         @adapter.execute <<-EOSQL
           create schema #{@right_schema};
           create schema #{@wrong_schema};
+        EOSQL
+      end
+
+      def teardown
+        super
+        @adapter.execute <<-EOSQL
+          drop schema #{@right_schema} cascade;
+          drop schema #{@wrong_schema} cascade;
         EOSQL
       end
 
@@ -89,7 +92,7 @@ module Rake
       def test_creates_a_table_in_the_right_schema_when_called_to
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.with_tracking do
-            @adapter.create_table @test_table_right_schema, nil, '(var1 text)'
+            @adapter.create_test_data @test_table_right_schema, data: nil, columns: '(var1 text)'
             assert_equal @adapter.table_exists?(@test_table_right_schema), true
           end
         end
@@ -136,7 +139,7 @@ module Rake
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.with_tracking do
 
-            @adapter.create_table @test_table_right_schema, nil, '(var1 integer)'
+            @adapter.create_test_data @test_table_right_schema, data: nil, columns: '(var1 integer)'
             tracked_create = Sql.get_single_int(
               @adapter.execute <<-EOSQL
                 select 1 from #{@right_schema}.#{Db::TABLE_TRACKER_NAME} 
@@ -156,7 +159,7 @@ module Rake
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.with_tracking do
 
-            @adapter.create_table @test_table_right_schema, nil, '(var1 text)'
+            @adapter.create_test_data @test_table_right_schema, data: nil, columns: '(var1 text)'
             @adapter.drop_table @test_table_right_schema
             still_tracking_table = Sql.get_single_int(
               @adapter.execute <<-EOSQL
@@ -176,7 +179,7 @@ module Rake
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.with_tracking do
 
-            @adapter.create_table @test_table_right_schema, nil, '(var1 text)'
+            @adapter.create_test_data @test_table_right_schema, data: nil, columns: '(var1 text)'
             @adapter.execute "insert into #{@test_table_right_schema} values ('a')"
             tracked_insert = Sql.get_single_int(
               @adapter.execute <<-EOSQL
@@ -197,7 +200,7 @@ module Rake
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.with_tracking do
 
-            @adapter.create_table @test_table_right_schema, nil, '(var1 text, var2 text)'
+            @adapter.create_test_data @test_table_right_schema, data: nil, columns: '(var1 text, var2 text)'
             @adapter.execute "insert into #{@test_table_right_schema} values ('a', 'a')"
             @adapter.execute "update #{@test_table_right_schema} set var2 = 'b' where var1 = 'a'"
 
@@ -220,7 +223,7 @@ module Rake
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.with_tracking do
 
-            @adapter.create_table @test_table_right_schema, nil, '(var1 text)'
+            @adapter.create_test_data @test_table_right_schema, data: nil, columns: '(var1 text)'
             @adapter.truncate_table @test_table_right_schema
             tracked_truncate = Sql.get_single_int(
               @adapter.execute <<-EOSQL
@@ -237,18 +240,18 @@ module Rake
         end
       end
 
-      def test_says_it_is_tracking_tables_after_tracking_is_set_up_in_the_right_schema
+      def test_says_it_is_tracking_operations_after_tracking_is_set_up_in_the_right_schema
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.tear_down_tracking
           @adapter.set_up_tracking
-          assert_equal (@adapter.tracking_tables?), true
+          assert_equal (@adapter.tracking_operations?), true
         end
       end
 
-      def test_says_it_is_not_tracking_tables_after_tracking_is_torn_down_in_the_right_schema
+      def test_says_it_is_not_tracking_operations_after_tracking_is_torn_down_in_the_right_schema
         @adapter.with_search_path([@right_schema,'public']) do
           @adapter.tear_down_tracking
-          assert_equal (@adapter.tracking_tables?), false
+          assert_equal (@adapter.tracking_operations?), false
         end
       end
 

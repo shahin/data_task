@@ -8,19 +8,20 @@ require 'data_task/adapters/postgres'
 module Rake
   module DataTask
 
-    class DbTest < Rake::TestCase
+    class DbTest < Minitest::Test
+
+      include ::TestHelper::SingleAdapterTest
 
       def initialize *args
         super
-
         @test_table = "test_table"
         @test_view = "test_view"
       end
 
-      def around(&block)
-        @adapter = TestHelper.get_adapter_to_test_db
-        @adapter.with_transaction_rollback do
-          yield
+      def before_setup
+        super
+        if !@adapter.kind_of?(Rake::DataTask::Db)
+          skip("Using adapter #{@adapter}, so skipping #{self.class} tests.")
         end
       end
 
@@ -45,7 +46,7 @@ module Rake
       def test_creates_a_table_when_called_to
         @adapter.with_tracking do
 
-          @adapter.create_table @test_table, nil, '(var1 text)'
+          @adapter.create_test_data @test_table, columns: '(var1 text)'
           assert_equal @adapter.table_exists?(@test_table), true
 
         end
@@ -54,7 +55,7 @@ module Rake
       def test_drops_a_table_when_called_to
         @adapter.with_tracking do
 
-          @adapter.create_table @test_table, nil, '(var1 text)'
+          @adapter.create_test_data @test_table, columns: '(var1 text)'
           @adapter.drop_table @test_table
           assert_equal @adapter.table_exists?(@test_table), false
 
@@ -64,7 +65,7 @@ module Rake
       def test_creates_a_view_when_called_to
         @adapter.with_tracking do
 
-          @adapter.create_table @test_table, nil, '(var1 text)'
+          @adapter.create_test_data @test_table, columns: '(var1 text)'
           @adapter.create_view @test_view, "select * from #{@test_table}"
           assert_equal @adapter.view_exists?(@test_view), true
 
@@ -74,7 +75,7 @@ module Rake
       def test_drops_a_view_when_called_to
         @adapter.with_tracking do
 
-          @adapter.create_table @test_table, nil, '(var1 text)'
+          @adapter.create_test_data @test_table, columns: '(var1 text)'
           @adapter.create_view @test_view, "select * from #{@test_table}"
           @adapter.drop_view @test_view
           assert_equal @adapter.view_exists?(@test_view), false
@@ -85,7 +86,7 @@ module Rake
       def test_drops_a_view_when_the_underlying_table_is_dropped
         @adapter.with_tracking do
 
-          @adapter.create_table @test_table, nil, '(var1 text)'
+          @adapter.create_test_data @test_table, columns: '(var1 text)'
           @adapter.create_view @test_view, "select * from #{@test_table}"
           @adapter.drop_table @test_table
           assert_equal @adapter.view_exists?(@test_view), false
@@ -96,7 +97,7 @@ module Rake
       def test_updates_the_tracking_table_when_it_creates_a_table
         @adapter.with_tracking do
 
-          @adapter.create_table @test_table, nil, '(var1 text)'
+          @adapter.create_test_data @test_table, columns: '(var1 text)'
            tracked_create = Sql.get_single_int( 
             @adapter.execute <<-EOSQL
             select 1 from #{Db::TABLE_TRACKER_NAME} 
@@ -114,7 +115,7 @@ module Rake
       def test_updates_the_tracking_table_when_it_drops_a_table
         @adapter.with_tracking do
 
-          @adapter.create_table @test_table, nil, '(var1 text)'
+          @adapter.create_test_data @test_table, columns: '(var1 text)'
           @adapter.drop_table @test_table
           still_tracking_table = Sql.get_single_int(
             @adapter.execute <<-EOSQL
@@ -132,7 +133,7 @@ module Rake
       def test_updates_the_tracking_table_on_insert_to_a_tracked_table
         @adapter.with_tracking do
 
-          @adapter.create_table @test_table, nil, '(var1 text)'
+          @adapter.create_test_data @test_table, columns: '(var1 text)'
           @adapter.execute <<-EOSQL
             insert into #{@test_table} values ('a')
           EOSQL
@@ -153,7 +154,7 @@ module Rake
       def test_updates_the_tracking_table_on_update_on_a_tracked_table
         @adapter.with_tracking do
 
-          @adapter.create_table @test_table, nil, '(var1 text, var2 text)'
+          @adapter.create_test_data @test_table, columns: '(var1 text, var2 text)'
           @adapter.execute <<-EOSQL
             insert into #{@test_table} values ('a', 'a')
           EOSQL
@@ -178,7 +179,7 @@ module Rake
       def test_updates_the_tracking_table_on_truncate_of_a_tracked_table
         @adapter.with_tracking do
 
-          @adapter.create_table @test_table, nil, '(var1 text)'
+          @adapter.create_test_data @test_table, columns: '(var1 text)'
           @adapter.truncate_table @test_table
           tracked_truncate = Sql.get_single_int( 
             @adapter.execute <<-EOSQL
@@ -194,15 +195,15 @@ module Rake
         end
       end
 
-      def test_says_it_is_tracking_tables_after_tracking_is_set_up
+      def test_says_it_is_tracking_operations_after_tracking_is_set_up
         @adapter.tear_down_tracking
         @adapter.set_up_tracking
-        assert_equal @adapter.tracking_tables?, true
+        assert_equal @adapter.tracking_operations?, true
       end
 
-      def test_says_it_is_not_tracking_tables_after_tracking_is_torn_down
+      def test_says_it_is_not_tracking_operations_after_tracking_is_torn_down
         @adapter.tear_down_tracking
-        assert_equal (@adapter.tracking_tables?), false
+        assert_equal (@adapter.tracking_operations?), false
       end
 
     end

@@ -1,4 +1,3 @@
-require 'pg'
 require_relative 'support/transactions'
 require_relative 'support/booleans'
 require_relative './postgres'
@@ -115,7 +114,7 @@ module Rake
         drop_table TABLE_TRACKER_HELPER_NAME
       end
 
-      def tracking_tables?
+      def tracking_operations?
         view_exists?(TABLE_TRACKER_NAME)
       end
 

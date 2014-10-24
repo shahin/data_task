@@ -12,7 +12,6 @@ namespace :data_task do
   require 'rake/testtask'
 
   Rake::TestTask.new do |t|
-    t.libs << "spec"
     t.test_files = FileList['test/**/*_test.rb']
     t.verbose
   end
@@ -42,19 +41,3 @@ datastore :postgres, 'postgres://postgres@localhost:5432/example' do |ds|
   end
 
 end
-
-
-# both approaches (datastore vs adapter hash) have problems.
-#
-# adapter hash pro:
-# - simple, readable definition of where a table is and what it's called
-# adapter hash con:
-# - can't have two tables with the same name in different sources
-#
-# datastore namespace pro:
-# - can have two tables with the same name in different stores
-# datastore namespace con:
-# - scope resolution might be confusing, since we mix datastores and namespaces
-#
-# hybrid:
-# - make adapter[] 

@@ -6,12 +6,9 @@ require_relative '../helper.rb'
 module Rake
   module DataTask
 
-    class DataTest < Rake::TestCase
+    class DataTest < Minitest::Test
 
-      def initialize *args
-        super
-        @test_data_name = "test"
-      end
+      include ::TestHelper::SingleAdapterTest
 
       def mtime_updated? data, operation
         original_mtime = data.mtime
@@ -20,63 +17,60 @@ module Rake
         data.mtime > original_mtime
       end
 
-      def around(&block)
-        @adapter = TestHelper.get_adapter_to_test_db
-        @adapter.with_transaction_rollback do
-          yield
-        end
-      end
-
       def test_has_a_modified_time_after_creation
         @adapter.with_tracking do
-          @adapter.create_data @test_data_name, nil, "(var1 integer)"
-          t = Data.new(@test_data_name, @adapter)
+          @adapter.create_test_data @adapter.test_data_name, columns: "(var1 integer)"
+          t = Data.new(@adapter.test_data_name, @adapter)
           assert_operator t.mtime.to_time, :>, Time.new(0)
         end
       end
 
       def test_has_an_updated_modified_time_after_insert
+        skip("Adapter does not support SQL operations.") if !@adapter.kind_of?(Rake::DataTask::Db)
         @adapter.with_tracking do
-          @adapter.create_data @test_data_name, nil, "(var1 integer)"
-          t = Data.new(@test_data_name, @adapter)
+          @adapter.create_test_data @adapter.test_data_name, columns: "(var1 integer)"
+          t = Data.new(@adapter.test_data_name, @adapter)
           operation = lambda do
-            @adapter.execute "insert into #{@test_data_name} values (1)"
+            @adapter.execute "insert into #{@adapter.test_data_name} values (1)"
           end
           assert mtime_updated?(t, operation)
         end
       end
 
       def test_has_an_updated_modified_time_after_update
+        skip("Adapter does not support SQL operations.") if !@adapter.kind_of?(Rake::DataTask::Db)
         @adapter.with_tracking do
-          @adapter.create_data @test_data_name, nil, "(var1 integer, var2 integer)"
-          t = Data.new(@test_data_name, @adapter)
-          @adapter.execute "insert into #{@test_data_name} values (1, 1)"
+          @adapter.create_test_data @adapter.test_data_name, columns: "(var1 integer, var2 integer)"
+          t = Data.new(@adapter.test_data_name, @adapter)
+          @adapter.execute "insert into #{@adapter.test_data_name} values (1, 1)"
           operation = lambda do 
-            @adapter.execute "update #{@test_data_name} set var2 = 2 where var1 = 1"
+            @adapter.execute "update #{@adapter.test_data_name} set var2 = 2 where var1 = 1"
           end
           assert mtime_updated?(t, operation)
         end
       end
 
       def test_has_an_updated_modified_time_after_delete
+        skip("Adapter does not support SQL operations.") if !@adapter.kind_of?(Rake::DataTask::Db)
         @adapter.with_tracking do
-          @adapter.create_data @test_data_name, nil, "(var1 integer)"
-          t = Data.new(@test_data_name, @adapter)
-          @adapter.execute "insert into #{@test_data_name} values (1)"
+          @adapter.create_test_data @adapter.test_data_name, columns: "(var1 integer)"
+          t = Data.new(@adapter.test_data_name, @adapter)
+          @adapter.execute "insert into #{@adapter.test_data_name} values (1)"
           operation = lambda do
-            @adapter.execute "delete from #{@test_data_name}"
+            @adapter.execute "delete from #{@adapter.test_data_name}"
           end
           assert mtime_updated?(t, operation)
         end
       end
 
       def test_has_an_updated_modified_time_after_truncate
+        skip("Adapter does not support SQL operations.") if !@adapter.kind_of?(Rake::DataTask::Db)
         @adapter.with_tracking do
-          @adapter.create_data @test_data_name, nil, "(var1 integer)"
-          t = Data.new(@test_data_name, @adapter)
-          @adapter.execute "insert into #{@test_data_name} values (1)"
+          @adapter.create_test_data @adapter.test_data_name, columns: "(var1 integer)"
+          t = Data.new(@adapter.test_data_name, @adapter)
+          @adapter.execute "insert into #{@adapter.test_data_name} values (1)"
           operation = lambda do
-            @adapter.truncate_data @test_data_name
+            @adapter.truncate_data @adapter.test_data_name
           end
           assert mtime_updated?(t, operation)
         end

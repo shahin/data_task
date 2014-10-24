@@ -2,11 +2,12 @@ require 'yaml'
 require 'logger'
 require_relative './sql'
 require_relative './util'
+require_relative './adapter'
 
 module Rake
   module DataTask
 
-    class Db
+    class Db < Adapter
       # This is the base class for SQL-compliant relational databases. It contains utility methods
       # that probably don't vary across databases, and it shouldn't be instantiated.
 

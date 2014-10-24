@@ -1,7 +1,12 @@
-require 'pg'
+begin
+  require 'pg'
+rescue LoadError
+  puts "The Postgres adapter requires the pg gem, which can be installed via rubygems."
+end
 require_relative 'support/transactions'
 require_relative 'support/booleans'
 require_relative 'support/connection_persistence'
+require_relative '../data'
 
 module Rake
   module DataTask
@@ -71,11 +76,7 @@ module Rake
         end
 
         # set up trackig if it isn't set up already
-        set_up_tracking if !tracking_tables?
-      end
-
-      def [](name)
-        Data.new(name, self)
+        set_up_tracking if !tracking_operations?
       end
 
       def table_tracker_columns
@@ -121,7 +122,7 @@ module Rake
         end
       end
 
-      def tracking_tables?
+      def tracking_operations?
         data_exists?(TABLE_TRACKER_NAME)
       end
 
@@ -156,6 +157,9 @@ module Rake
       def table_mtime qualified_table_name
         schema_name, table_name = parse_schema_and_table_name(qualified_table_name)
         schema_name = first_schema_for(table_name) if schema_name.nil?
+
+        # checking the mtime of a table that does not exist should return nil
+        return nil if !table_exists?(table_name) || schema_name.nil?
 
         with_search_path(schema_name) do
           Sql.get_single_time(
@@ -221,8 +225,7 @@ module Rake
           track_creation table_name, 0
         end
       end
-
-      alias_method :create_data, :create_table
+      private :create_table
 
       def create_view view_name, view_definition
         drop_view view_name

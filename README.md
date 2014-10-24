@@ -3,7 +3,7 @@
 
 # DataTask
 
-DataTask enables dependency-based programming for data workflows on top of the Rake build tool. This gem provides the DataTask, analogous to Rake's built-in FileTask but extended to work with pluggable backends beyond the local filesystem.
+DataTask is a build tool for data. It extends Rake's dependency-based programming language to databases. This gem provides the `data` task, analogous to Rake's built-in `file` task but extended to work with pluggable backends beyond the local filesystem.
 
 Adapters are included for Sqlite3, PostgreSQL, and Greenplum.
 
@@ -23,29 +23,61 @@ Or install it yourself as:
 
 ## Usage
 
-To write your first dependency-based data loader, connect to your database by instantiating an adapter:
+To write your first data task, connect to your database by instantiating an adapter:
 
 ```
-postgres = Rake::DataTask::Postgres.new(
-  'host' => 'localhost', 
-  'port' => 5432, 
-  'database' => 'example', 
-  'username' => 'postgres'
-  )
+sqlite = Rake::DataTask::Sqlite.new('database' => 'example')
 ```
 
 Then use this adapter instance as the target for a data task:
 
 ```
-desc "Load a data file into PostgreSQL for analysis."
-data postgres['raw'] => 'raw.txt' do
+desc "Load a data file into Sqlite for analysis."
+data sqlite['raw'] => 'raw.txt' do
   # Add loading logic here
 end
 ```
 
 Rake will run this task if and only if (a) the table 'raw' is does not exist yet, or (b) the table 'raw' exists but has a timestamp earlier than the file 'raw.txt'. Since database tables now have timestamps associated with them, they can serve as targets or as dependencies in data tasks.
 
-See lib/data_task/tasks/examples.rake for a more complete example workflow.
+Here's a runnable example Rakefile:
+
+```
+require 'rake'
+require 'data_task'
+
+# connect to the database
+sqlite = Rake::DataTask::Sqlite.new('database' => 'example')
+
+# mark raw.txt as a potential dependency
+file 'raw.txt'
+
+# define a loader for the Sqlite3 table 'raw', dependent on raw.txt
+desc "Load a data file into Sqlite3 for analysis."
+data sqlite['raw'] => 'raw.txt' do
+  sqlite.create_table 'raw', nil, '(var1 text)'
+  File.open('raw.txt').each { |line| sqlite.execute "insert into raw values ('#{line}')" }
+end
+
+# define an analytical table, dependent on the raw data table
+desc "Analyze loaded data."
+data sqlite['analyzed'] => sqlite['raw'] do
+  sqlite.create_table 'analyzed', 'select * from raw'
+end
+```
+
+To run it: 
+
+1. paste the example into a file named 'Rakefile',
+2. in the same directory as your Rakefile, open a terminal and run the commands below:
+
+```
+$ echo "v1" > raw.txt
+$ rake analyzed
+```
+
+The contents of raw.txt should be in your table 'raw' on your Sqlite database. Running the rake command a second time will result in no operations as long as raw.txt and the 'raw' table haven't changed.
+
 
 ## Contributing
 

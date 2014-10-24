@@ -1,6 +1,11 @@
-require 'sqlite3'
+begin
+  require 'sqlite3'
+rescue LoadError
+  puts "The Sqlite adapter requires the sqlite3 gem, which can be installed via rubygems."
+end
 require_relative 'support/transactions'
 require_relative 'support/booleans'
+require_relative '../data'
 
 module Rake
   module DataTask
@@ -20,7 +25,7 @@ module Rake
         @connection = SQLite3::Database.new(options['database'] || 'temp')
 
         # set up trackig if it isn't set up already
-        set_up_tracking if !tracking_tables?
+        set_up_tracking if !tracking_operations?
       end
 
       def execute sql
@@ -36,7 +41,7 @@ module Rake
       include NumericBooleans
       include StandardTransactions
 
-      def tracking_tables?
+      def tracking_operations?
         table_exists?(TABLE_TRACKER_NAME)
       end
 
@@ -76,7 +81,7 @@ module Rake
 
       alias_method :data_mtime, :table_mtime
 
-      def create_table table_name, data_definition, column_definitions, track_table=true
+      def create_table table_name, data_definition, column_definitions=nil, track_table=true
         drop_table table_name
         execute <<-EOSQL
           create table #{table_name} #{column_definitions}
@@ -168,11 +173,6 @@ module Rake
           :by_app => [:truncate, :create]
         }
       end
-
-      def [](name)
-        Data.new(name, self)
-      end
-
 
 
       private
