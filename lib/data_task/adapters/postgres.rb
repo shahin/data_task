@@ -11,6 +11,13 @@ require_relative '../data'
 module Rake
   module DataTask
 
+    # DBMS-consistent operations and their mechanisms:
+    # - create (application), since we need application to set rules anyway
+    # - drop (sql_drop event trigger)
+    # - insert (table rule)
+    # - update (table rule)
+    # - delete (table rule)
+    # - truncate (table trigger)
     class Postgres < Db
 
       @connections = {}
@@ -41,7 +48,7 @@ module Rake
       # @option options [String] 'username' the name of the database user to connect as
       # @option options [String] 'password' the database user's password
       # @return [Sqlite] an instance of this adapter
-      def initialize options
+      def initialize options={}
         host = options['host'] || 'localhost'
         port = options['port'] || 5432
         database = options['database']
@@ -177,7 +184,6 @@ module Rake
       def truncate_table table_name
         return if table_name.casecmp(TABLE_TRACKER_NAME) == 0
         execute "truncate table #{table_name}"
-        track_truncate table_name
       end
       
       alias_method :truncate_data, :truncate_table
@@ -188,6 +194,7 @@ module Rake
         track_drop table_name
       end
 
+      # TODO: re-implement this using an event trigger (requires Postgres 9.3+)
       def track_drop table_name
         schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
         table_tracker_name = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
@@ -222,6 +229,7 @@ module Rake
         EOSQL
         if track_table
           create_tracking_rules(table_name)
+          create_tracking_triggers(table_name)
           track_creation table_name, 0
         end
       end
@@ -354,6 +362,63 @@ module Rake
           "#{table_name}_#{operation.to_s}"
         end
 
+        def create_tracking_functions
+          # TODO: resolve last_operations, get its schema, and constrain following functions to tables in that schema
+          execute <<-EOSQL
+            create or replace function track_truncate() returns trigger as
+            $$
+              begin
+
+                delete from last_operations where 
+                  relation_name = TG_TABLE_NAME and
+                  relation_type = '#{relation_type_values[:table]}'
+                  ;
+                
+                insert into last_operations values (
+                  TG_TABLE_NAME,
+                  '#{relation_type_values[:table]}',
+                  'TRUNCATE',
+                  clock_timestamp()
+                  );
+
+              return null; end;
+            $$ language plpgsql
+          EOSQL
+
+          execute <<-EOSQL
+            create or replace function track_drop() returns event_trigger as
+            $$
+              declare
+                obj record;
+              begin
+
+                for obj in select * from pg_event_trigger_dropped_objects()
+                loop
+
+                  delete from last_operations lo
+                  where 
+                    obj.object_type = 'table' and
+                    lo.relation_name = obj.object_name and
+                    relation_type = '#{relation_type_values[:table]}'
+                    ;
+
+                end loop;
+
+              end;
+            $$ language plpgsql
+          EOSQL
+        end
+
+        def create_tracking_triggers table_name
+          # TODO: resolve last_operations, get its schema, and constrain following functions to tables in that schema
+          execute <<-EOSQL
+            create trigger track_truncate_#{table_name}
+            after truncate
+            on #{table_name}
+            execute procedure track_truncate()
+          EOSQL
+        end
+
         def create_tracking_rules table_name
           schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
           qualified_table_tracker = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
@@ -380,6 +445,11 @@ module Rake
           end
         end
 
+        # TODO: re-implement this using an event trigger (requires Postgres 9.3+)
+        # plan: inside the trigger function, join the system table that looks at all tables
+        # in a schema with the tracking tables table and an untracked tables table. Track any
+        # table that is not in untracked table and not in tracked tables. This is an event trigger so
+        # the timestamp should still be correct for table creation. After trigger is safer than before trigger.
         def track_creation table_name, n_tuples
           schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
           qualified_table_tracker = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
@@ -394,23 +464,9 @@ module Rake
               '#{unqualified_table_name}',
               '#{relation_type_values[:table]}',
               '#{operation_values[operation]}',
+              -- TODO: is this the correct timestamp for doing stuff inside transactions? mult simul txns?
               clock_timestamp()
             );
-          EOSQL
-        end
-
-        def track_truncate table_name
-          schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
-          qualified_table_tracker = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
-
-          execute <<-EOSQL
-            update #{qualified_table_tracker}
-            set 
-              operation = '#{operation_values[:truncate]}',
-              time = clock_timestamp()
-            where
-              relation_name = '#{unqualified_table_name}' and
-              relation_type = '#{relation_type_values[:table]}'
           EOSQL
         end
 
