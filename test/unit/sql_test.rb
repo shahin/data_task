@@ -27,7 +27,7 @@ module Rake
       end
 
       def test_when_asked_to_parse_a_single_value_returns_nil_if_the_results_array_contains_no_rows
-        r = @adapter.execute("select 1 where #{@adapter.falsey_value}")
+        r = @adapter.execute("select 1 where '#{@adapter.falsey_value}'")
         assert_nil Sql.parse_single_value(r)
       end
 

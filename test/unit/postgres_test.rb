@@ -58,15 +58,15 @@ module Rake
 
       def test_returns_the_current_search_path_when_called_to
         @adapter.execute "set search_path to #{@right_schema}, public"
-        assert_equal @adapter.send(:search_path), [@right_schema, 'public']
+        assert_equal @adapter.send(:current_search_path_schemas), [@right_schema, 'public']
       end
 
       def test_resets_the_search_path_after_exiting_a_with_search_path_block
         @adapter.execute "set search_path to #{@right_schema}, public"
         @adapter.with_search_path([@wrong_schema,'public']) do
-          assert_equal @adapter.send(:search_path), [@wrong_schema, 'public']
+          assert_equal @adapter.send(:current_search_path_schemas), [@wrong_schema, 'public']
         end
-        assert_equal @adapter.send(:search_path), [@right_schema, 'public']
+        assert_equal @adapter.send(:current_search_path_schemas), [@right_schema, 'public']
       end
 
       def test_returns_the_first_schema_in_the_search_path_that_contains_a_table_when_called_to

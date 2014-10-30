@@ -11,13 +11,6 @@ require_relative '../data'
 module Rake
   module DataTask
 
-    # DBMS-consistent operations and their mechanisms:
-    # - create (application), since we need application to set rules anyway
-    # - drop (sql_drop event trigger)
-    # - insert (table rule)
-    # - update (table rule)
-    # - delete (table rule)
-    # - truncate (table trigger)
     class Postgres < Db
 
       @connections = {}
@@ -33,7 +26,7 @@ module Rake
         }
       end
 
-      include StandardBooleans
+      include SingleLetterBooleans
       include StandardTransactions
 
       # Connect to a PostgreSQL database. 
@@ -129,40 +122,79 @@ module Rake
         end
       end
 
-      def tracking_operations?
-        data_exists?(TABLE_TRACKER_NAME)
+      # Check whether tracking is set up in this schema. If schema is not specified, check the
+      # first schema in which we find a tracking table.
+      #
+      # @return [Boolean] true if all tracking assets are available in the schema; false otherwise
+      def tracking_operations? schema_name=nil
+        schema_name ||= first_schema_for(TABLE_TRACKER_NAME)
+        return false if schema_name.nil?
+
+        return (
+          function_exists?([schema_name, 'datatask_track_truncate'].compact.join('.')) &&
+          function_exists?([schema_name, 'datatask_track_drop'].compact.join('.')) &&
+          event_trigger_exists?('datatask_track_drop_trigger')
+        )
       end
 
+      # Set up tracking mechanisms in a single schema.
+      #
+      # If no schema name is provided, use the first schema in the search path.
+      #
+      # @option options [String] :schema_name the name of the schema to begin tracking
+      # @option options [Boolean] :force attempt to set up tracking even if it is already set up
       def set_up_tracking options = {}
-        tear_down_tracking options
+        schema_name = options[:schema_name]
+        force_setup = options[:force]
 
-        target_search_path = options[:search_path] || search_path.join(',')
+        return if tracking_operations?(schema_name) && !!force_setup
+
+        target_search_path = [schema_name || current_search_path_schemas.first]
         with_search_path(target_search_path) do
 
           column_definitions = table_tracker_columns.map do |col, col_defn|
             col.to_s + ' ' + col_defn[:data_type].to_s
           end.join(', ')
           create_table TABLE_TRACKER_NAME, nil, " (#{column_definitions})", false
+          create_tracking_functions
+          create_drop_tracking_event_trigger
 
         end
       end
 
+      # Drop all tracking mechanisms in a schema.
+      #
+      # Note: does not drop the database-level event trigger used to track drops.
+      #
+      # @option options [String] :schema_name the name of the schema to stop tracking
       def tear_down_tracking options = {}
-        target_search_path = options[:search_path] || search_path.join(',')
+        schema_name = options[:schema_name]
+
+        # scope all operations to a single schema
+        target_search_path = [schema_name || first_schema_for(TABLE_TRACKER_NAME)]
         with_search_path(target_search_path) do
           drop_table TABLE_TRACKER_NAME
+          drop_drop_tracking_function
+          LOG.info "Event trigger for DROP operations is not torn down, must be dropped manually."
         end
       end
 
+      # Clear tracking data but leave all tracking mechanisms in place.
+      # @option options [String] :schema_name the name of the schema to reset tracking in
       def reset_tracking options = {}
-        target_search_path = options[:search_path] || search_path.join(',')
+        target_search_path = [options[:schema_name] || first_schema_for(TABLE_TRACKER_NAME)]
         with_search_path(target_search_path) do
           truncate_table TABLE_TRACKER_NAME
         end
       end
 
+      # Get the timestamp of the most recent operation on a table.
+      #
+      # @param qualified_table_name [String] the name of the table, optionally qualified with its
+      # schema name. If unqualified, its schema is resolved via the current search path.
+      # @return [DateTime] the time of the most recent operation on the table
       def table_mtime qualified_table_name
-        schema_name, table_name = parse_schema_and_table_name(qualified_table_name)
+        schema_name, table_name = parse_schema_and_object_name(qualified_table_name)
         schema_name = first_schema_for(table_name) if schema_name.nil?
 
         # checking the mtime of a table that does not exist should return nil
@@ -190,23 +222,6 @@ module Rake
 
       def drop_table table_name
         execute "drop table if exists #{table_name} cascade"
-        return if table_name.casecmp(TABLE_TRACKER_NAME) == 0
-        track_drop table_name
-      end
-
-      # TODO: re-implement this using an event trigger (requires Postgres 9.3+)
-      def track_drop table_name
-        schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
-        table_tracker_name = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
-
-        if table_exists?(table_tracker_name)
-          execute <<-EOSQL
-            delete from #{table_tracker_name}
-            where
-              relation_name = '#{unqualified_table_name}' and 
-              relation_type = '#{relation_type_values[:table]}'
-          EOSQL
-        end
       end
 
       alias_method :drop_data, :drop_table
@@ -221,26 +236,74 @@ module Rake
         relation_exists? view_name, :view, options
       end
 
+      def function_exists? function_name
+        schema_name, function_name = parse_schema_and_object_name(function_name)
+        schema_name ||= current_search_path_schemas.first
+
+        exists = Sql.get_single_value(
+          execute <<-EOSQL
+          select exists(
+            select TRUE
+            from
+              pg_catalog.pg_proc pp
+              join pg_catalog.pg_namespace pn on (pp.pronamespace = pn.oid)
+            where
+              pp.proname = '#{function_name}' and
+              pn.nspname = '#{schema_name}'
+            )
+          EOSQL
+        )
+        true?(exists)
+      end
+
+      def event_trigger_exists? event_trigger_name
+        exists = Sql.get_single_value(
+          execute <<-EOSQL
+            select exists( 
+              select TRUE from pg_catalog.pg_event_trigger
+              where evtname = '#{event_trigger_name}'
+              )
+          EOSQL
+        )
+        true?(exists)
+      end
+
       def create_table table_name, data_definition, column_definitions, track_table=true
-        drop_table table_name
-        execute <<-EOSQL
-          create table #{table_name} #{column_definitions}
-          #{ "as #{data_definition}" if !data_definition.nil? }
-        EOSQL
-        if track_table
-          create_tracking_rules(table_name)
-          create_tracking_triggers(table_name)
-          track_creation table_name, 0
+        schema_name, table_name = parse_schema_and_object_name(table_name)
+        schema_name ||= current_search_path_schemas.first
+
+        with_search_path([schema_name]) do
+
+          if track_table && !tracking_operations?
+            set_up_tracking
+          end
+
+          drop_table table_name
+          execute <<-EOSQL
+            create table #{table_name} #{column_definitions}
+            #{ "as #{data_definition}" if !data_definition.nil? }
+          EOSQL
+          if track_table
+            create_tracking_rules(table_name)
+            create_truncate_table_trigger(table_name)
+            track_creation table_name
+          end
+
         end
       end
       private :create_table
 
       def create_view view_name, view_definition
-        drop_view view_name
-        execute <<-EOSQL
-          create view #{view_name} as
-          #{view_definition}
-        EOSQL
+        schema_name, view_name = parse_schema_and_object_name(view_name)
+        target_search_path = [schema_name || current_search_path]
+
+        with_search_path(target_search_path) do
+          drop_view view_name
+          execute <<-EOSQL
+            create view #{view_name} as
+            #{view_definition}
+          EOSQL
+        end
       end
 
       def drop_view view_name
@@ -250,18 +313,30 @@ module Rake
       def operations_supported
         {
           :by_db => operations_supported_by_db,
-          :by_app => [:truncate, :create] - operations_supported_by_db
+          :by_app => [:create] - operations_supported_by_db
         }
       end
 
+      # Changes the database search path for the current connection for the duration of the given
+      # block. After block execution, changes back to the original search path.
+      # 
+      # @param schemas [Array] a list of schemas by search path position to set as the search path
+      # @yield executes the block under the search path defined by the given schema list
+      # @return [Object] the return value of the given block
       def with_search_path schemas
-        original_search_path = search_path
+        original_search_path = current_search_path
         execute "set search_path to #{Array(schemas).join(',')}"
         r = yield
-        execute "set search_path to #{original_search_path.join(',')}"
+        execute "set search_path to #{original_search_path}"
         r
       end
 
+      # Changes the database role for the current connection for the duration of the given block.
+      # After block execution, changes back to the original role.
+      # 
+      # @param role [String] the name of the role to change to
+      # @yield executes the block under the given role
+      # @return [Object] the return value of the given block
       def with_role role
         original_role = current_user
         execute "set role #{role}"
@@ -275,7 +350,7 @@ module Rake
       private
 
         def operations_supported_by_db
-          operations_supported_by_db_rules
+          operations_supported_by_db_rules + [:truncate, :drop]
         end
 
         def operations_supported_by_db_rules
@@ -285,9 +360,9 @@ module Rake
         # Split a table name qualified with a schema name into separate strings for schema and 
         # table names.
         #
-        # @returns [String, String] the schema name and table name, separately, for table_name. If
+        # @return [String, String] the schema name and table name, separately, for table_name. If
         # table_name is unqualified with the schema name, return [nil, table_name].
-        def parse_schema_and_table_name table_name
+        def parse_schema_and_object_name table_name
           return [nil, table_name] if table_name.count('.') == 0
 
           if table_name.count('.') > 1
@@ -298,42 +373,48 @@ module Rake
           [schema_name, table_name]
         end
 
-        # @returns [Array] the ordered schema names in the search path as strings
-        def search_path
-          current_search_path = execute("show search_path").first.first.split(',').map { |s| s.strip }
+        # @return [String] the full current search path
+        def current_search_path
+          execute("show search_path").first.first
+        end
+
+        # @return [Array] the ordered schema names in the search path as strings
+        def current_search_path_schemas
+          search_path_schemas = current_search_path.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).
+            map(&:strip)
           username = current_user
 
           # the default search path begins with a symbolic reference to the current username
           # if that reference is in the search path, replace it with the resolved current username
-          if current_search_path.first == '"$user"'
+          if search_path_schemas.first == '"$user"'
             user_schema_exists = execute <<-EOSQL
-              select 1
+              select TRUE
               from information_schema.schemata 
               where schema_name = '#{username}'
             EOSQL
 
             if user_schema_exists.nil? || user_schema_exists.first.nil?
-              current_search_path = current_search_path[1..-1]
+              search_path_schemas = search_path_schemas[1..-1]
             else
-              current_search_path = [username] + current_search_path[1..-1]
+              search_path_schemas = [username] + search_path_schemas[1..-1]
             end
           end
 
-          current_search_path.map(&:downcase)
+          search_path_schemas.map(&:downcase)
         end
 
-        # @returns [String] the name of the current database user
+        # @return [String] the name of the current database user
         def current_user
           execute("select current_user").first.first
         end
 
-        # @returns [String] the name of the first schema in the search path containing table_name
+        # @return [String] the name of the first schema in the search path containing table_name
         def first_schema_for table_name
           return if !table_exists?(table_name)
-          schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+          schema_name, unqualified_table_name = parse_schema_and_object_name(table_name)
 
           search_path_when_stmts = []
-          search_path.each_with_index do |s,i| 
+          current_search_path_schemas.each_with_index do |s,i| 
             search_path_when_stmts << "when table_schema = '#{s}' then #{(i+1).to_s}"
           end
 
@@ -358,23 +439,24 @@ module Rake
           schema_name.first.first
         end
 
-        def rule_name table_name, operation
-          "#{table_name}_#{operation.to_s}"
+        def rule_name operation
+          "_datatask_#{operation.to_s}"
         end
 
         def create_tracking_functions
-          # TODO: resolve last_operations, get its schema, and constrain following functions to tables in that schema
+          schema_name = current_search_path_schemas.first
+
           execute <<-EOSQL
-            create or replace function track_truncate() returns trigger as
+            create or replace function #{schema_name}.datatask_track_truncate() returns trigger as
             $$
               begin
 
-                delete from last_operations where 
+                delete from #{schema_name}.last_operations where 
                   relation_name = TG_TABLE_NAME and
                   relation_type = '#{relation_type_values[:table]}'
                   ;
                 
-                insert into last_operations values (
+                insert into #{schema_name}.last_operations values (
                   TG_TABLE_NAME,
                   '#{relation_type_values[:table]}',
                   'TRUNCATE',
@@ -386,47 +468,110 @@ module Rake
           EOSQL
 
           execute <<-EOSQL
-            create or replace function track_drop() returns event_trigger as
-            $$
+            create or replace function #{schema_name}.datatask_track_drop() returns event_trigger as
+            $fn$
               declare
                 obj record;
+                dropped_from_schema varchar;
+                tracking_dropped_from_schema boolean;
+                is_table boolean;
+                q varchar;
               begin
 
                 for obj in select * from pg_event_trigger_dropped_objects()
                 loop
 
-                  delete from last_operations lo
-                  where 
-                    obj.object_type = 'table' and
-                    lo.relation_name = obj.object_name and
-                    relation_type = '#{relation_type_values[:table]}'
-                    ;
+                  dropped_from_schema := obj.schema_name;
+
+                  -- raise notice 'dropped_from_schema: %', dropped_from_schema;
+                  if dropped_from_schema is not null then
+
+                    execute 'select exists(
+                      select 1
+                      from information_schema.tables
+                      where
+                        table_schema = '
+                        || quote_literal(dropped_from_schema) 
+                        || ' and table_name = '
+                        || quote_literal('last_operations') 
+                        || ')' into tracking_dropped_from_schema;
+
+                    -- raise notice 'tracking_dropped_from_schema: %', tracking_dropped_from_schema;
+                    if tracking_dropped_from_schema then
+
+                      is_table := (obj.object_type = 'table');
+                      -- raise notice 'is_table: %', is_table;
+                      if is_table then
+
+                        q := 'delete from '
+                          || quote_ident(dropped_from_schema)
+                          || '.last_operations lo
+                        where 
+                          lo.relation_name = '
+                          || quote_literal(obj.object_name) 
+                          || ' and relation_type = '
+                          || quote_literal($$#{relation_type_values[:table]}$$)
+                          ;
+                      
+                        -- raise notice 'query: %', q;
+                        execute q;
+
+                      end if;
+
+                    end if;
+
+                  end if;
 
                 end loop;
 
               end;
-            $$ language plpgsql
+            $fn$ language plpgsql
           EOSQL
         end
 
-        def create_tracking_triggers table_name
-          # TODO: resolve last_operations, get its schema, and constrain following functions to tables in that schema
+        def drop_drop_tracking_function
+          execute "drop function if exists datatask_track_drop() cascade"
+        end
+
+        def drop_truncate_tracking_function
+          execute "drop function if exists datatask_track_truncate() cascade"
+        end
+
+        def create_truncate_table_trigger table_name
+          # ensure that this trigger's table and its proc are in the same schema
+          schema_name, table_name = parse_schema_and_object_name(table_name)
+          schema_name ||= current_search_path_schemas.first
+
           execute <<-EOSQL
-            create trigger track_truncate_#{table_name}
+            create trigger datatask_track_truncate_#{table_name}
             after truncate
-            on #{table_name}
-            execute procedure track_truncate()
+            on #{schema_name}.#{table_name}
+            execute procedure #{schema_name}.datatask_track_truncate()
           EOSQL
+        end
+
+        def create_drop_tracking_event_trigger
+          drop_drop_tracking_event_trigger
+          execute <<-EOSQL
+            create event trigger datatask_track_drop_trigger
+            on sql_drop
+            when TAG in ('DROP TABLE')
+            execute procedure datatask_track_drop()
+          EOSQL
+        end
+
+        def drop_drop_tracking_event_trigger
+          execute "drop event trigger if exists datatask_track_drop_trigger cascade"
         end
 
         def create_tracking_rules table_name
-          schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
+          schema_name, unqualified_table_name = parse_schema_and_object_name(table_name)
           qualified_table_tracker = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
 
           operations_supported_by_db_rules.each do |operation|
             execute <<-EOSQL
-              create or replace rule "#{rule_name(table_name, operation)}" as
-                on #{operation.to_s} to #{table_name} do also (
+              create or replace rule "#{rule_name(operation)}" as
+                on #{operation.to_s} to #{unqualified_table_name} do also (
 
                   delete from #{qualified_table_tracker} where
                     relation_name = '#{unqualified_table_name}' and
@@ -450,9 +595,9 @@ module Rake
         # in a schema with the tracking tables table and an untracked tables table. Track any
         # table that is not in untracked table and not in tracked tables. This is an event trigger so
         # the timestamp should still be correct for table creation. After trigger is safer than before trigger.
-        def track_creation table_name, n_tuples
-          schema_name, unqualified_table_name = parse_schema_and_table_name(table_name)
-          qualified_table_tracker = schema_name.nil? ? TABLE_TRACKER_NAME : "#{schema_name}.#{TABLE_TRACKER_NAME}"
+        def track_creation table_name
+          schema_name, unqualified_table_name = parse_schema_and_object_name(table_name)
+          qualified_table_tracker = [schema_name, TABLE_TRACKER_NAME].compact.join('.')
 
           operation = :create
           execute <<-EOSQL
@@ -471,25 +616,27 @@ module Rake
         end
 
         def relation_exists? relation_name, relation_type, options = {}
-          schema_name, unqualified_relation_name = parse_schema_and_table_name(relation_name)
+          schema_name, unqualified_relation_name = parse_schema_and_object_name(relation_name)
 
           if !schema_name.nil?
             schema_conditions_sql = "table_schema ilike '#{schema_name}'"
           else
-            schema_conditions_sql = "table_schema in (#{search_path.to_quoted_s})"
+            schema_conditions_sql = "table_schema in (#{current_search_path_schemas.to_quoted_s})"
           end
 
-          n_matches = Sql.get_single_int(
+          exists = Sql.get_single_value(
             execute <<-EOSQL 
-              select count(*)
-              from information_schema.tables 
-              where 
-                table_name = '#{unqualified_relation_name}' and
-                table_type = '#{relation_type_values[relation_type]}' and
-                #{ schema_conditions_sql }
+              select exists(
+                select 1
+                from information_schema.tables 
+                where 
+                  table_name = '#{unqualified_relation_name}' and
+                  table_type = '#{relation_type_values[relation_type]}' and
+                  #{ schema_conditions_sql }
+              )
             EOSQL
           )
-          (n_matches > 0)
+          true?(exists)
         end
 
     end
