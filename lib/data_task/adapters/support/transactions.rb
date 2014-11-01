@@ -4,7 +4,7 @@ module Rake
   module DataTask
 
     class Db
-      module StandardTransactions
+      module SqlTransactions
 
         def with_transaction do_commit, &block
           begin

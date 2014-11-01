@@ -5,6 +5,7 @@ rescue LoadError
 end
 require_relative 'support/transactions'
 require_relative 'support/booleans'
+require_relative 'support/tracking_table'
 require_relative '../data'
 
 module Rake
@@ -39,7 +40,7 @@ module Rake
       end
 
       include NumericBooleans
-      include StandardTransactions
+      include SqlTransactions
 
       def tracking_operations?
         table_exists?(TABLE_TRACKER_NAME)
@@ -52,12 +53,9 @@ module Rake
         })
       end
 
+      include TrackingTable
       def set_up_tracking options = {}
-        tear_down_tracking options
-        column_definitions = table_tracker_columns.map do |col,col_defn|
-          col.to_s + ' ' + col_defn[:data_type].to_s
-        end.join(', ')
-        create_table TABLE_TRACKER_NAME, nil, " (#{column_definitions})", false
+        create_tracking_table TABLE_TRACKER_NAME
       end
 
       def tear_down_tracking options = {}
@@ -88,7 +86,7 @@ module Rake
           #{ "as #{data_definition}" if !data_definition.nil? }
         EOSQL
         if track_table
-          create_tracking_rules(table_name)
+          create_tracking_triggers(table_name)
           track_creation table_name, 0
         end
       end
@@ -185,7 +183,7 @@ module Rake
           "#{table_name}_#{operation.to_s}"
         end
 
-        def create_tracking_rules table_name
+        def create_tracking_triggers table_name
           operations_supported_by_db.each do |operation|
             execute <<-EOSQL
               create trigger #{rule_name(table_name, operation)}
