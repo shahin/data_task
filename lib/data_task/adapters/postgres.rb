@@ -152,7 +152,6 @@ module Rake
 
         target_search_path = [schema_name || current_search_path_schemas.first]
         with_search_path(target_search_path) do
-
           create_tracking_table TABLE_TRACKER_NAME
           @trigger_manager = TriggerManager.new(self)
           @trigger_manager.set_up_tracking
@@ -296,13 +295,6 @@ module Rake
         execute "drop view if exists #{view_name} cascade"
       end
 
-      def operations_supported
-        {
-          :by_db => operations_supported_by_db,
-          :by_app => [:create] - operations_supported_by_db
-        }
-      end
-
       # Changes the database role for the current connection for the duration of the given block.
       # After block execution, changes back to the original role.
       # 
@@ -320,10 +312,6 @@ module Rake
 
 
       private
-
-        def operations_supported_by_db
-          operations_supported_by_db_rules + [:truncate, :drop]
-        end
 
         def operations_supported_by_db_rules
           [:update, :insert, :delete]

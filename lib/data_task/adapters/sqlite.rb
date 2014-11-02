@@ -165,17 +165,10 @@ module Rake
         EOSQL
       end
 
-      def operations_supported
-        {
-          :by_db => operations_supported_by_db,
-          :by_app => [:truncate, :create]
-        }
-      end
-
 
       private
 
-        def operations_supported_by_db
+        def operations_supported_by_db_triggers
           [:update, :insert, :delete]
         end
 
@@ -184,7 +177,7 @@ module Rake
         end
 
         def create_tracking_triggers table_name
-          operations_supported_by_db.each do |operation|
+          operations_supported_by_db_triggers.each do |operation|
             execute <<-EOSQL
               create trigger #{rule_name(table_name, operation)}
                 after #{operation.to_s} on #{table_name} begin
